@@ -1,166 +1,280 @@
 const { test, expect } = require('@playwright/test');
-const { TEST_CREDENTIALS, login, clearStorage } = require('../test-utils');
+const { TEST_CREDENTIALS, clearStorage } = require('../test-utils');
 
 test.describe('Therapist Dashboard', () => {
+  // Increase timeout for all tests in this suite
+  test.setTimeout(90000);
+  
   test.beforeEach(async ({ page }) => {
     const creds = TEST_CREDENTIALS.therapist;
     
     // Login as therapist
-    await page.goto('/login', { waitUntil: 'networkidle', timeout: 30000 });
+    await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await clearStorage(page);
     
-    // Wait for form with better error handling
-    await page.waitForSelector('form', { timeout: 15000 }).catch(async () => {
-      // If form not found, wait a bit more and try again
-      await page.waitForTimeout(2000);
-      await page.waitForSelector('form', { timeout: 10000 });
-    });
+    // Wait for form to be ready
+    await page.waitForSelector('form', { timeout: 15000 });
+    await page.waitForTimeout(1000);
     
+    // Fill login form
     await page.selectOption('select', creds.role);
     await page.fill('input[type="email"]', creds.email);
     await page.fill('input[type="password"]', creds.password);
+    
+    // Click submit and wait for navigation
     await page.click('button[type="submit"]');
     
-    // Wait for therapist dashboard to load
-    await page.waitForURL('**/therapist', { timeout: 20000 });
+    // Wait for therapist dashboard to load (handles both navigate and reload)
+    await page.waitForURL('**/therapist**', { timeout: 30000, waitUntil: 'domcontentloaded' });
+    
+    // Wait for page to fully load after reload
+    await page.waitForLoadState('domcontentloaded', { timeout: 20000 });
+    await page.waitForTimeout(2000);
+    
+    // Wait for sidebar to appear - this is the key indicator that page loaded
+    // Try multiple strategies with longer timeout
+    let sidebarFound = false;
+    const maxAttempts = 20;
+    
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        // Check if sidebar exists
+        const sidebarCount = await page.locator('.sidebar').count();
+        if (sidebarCount > 0) {
+          // Wait for it to be visible
+          await page.waitForSelector('.sidebar', { 
+            timeout: 5000, 
+            state: 'visible' 
+          });
+          sidebarFound = true;
+          break;
+        }
+      } catch (e) {
+        // Continue trying
+      }
+      
+      // Also check for alternative selectors
+      try {
+        const altSelectors = [
+          '.therapist-dashboard .sidebar',
+          '[class*="sidebar"]',
+          '.sidebar-nav'
+        ];
+        
+        for (const selector of altSelectors) {
+          const count = await page.locator(selector).count();
+          if (count > 0) {
+            sidebarFound = true;
+            break;
+          }
+        }
+        
+        if (sidebarFound) break;
+      } catch (e) {
+        // Continue
+      }
+      
+      // Wait before next attempt
+      await page.waitForTimeout(1000);
+    }
+    
+    if (!sidebarFound) {
+      // Final check - take screenshot and get debug info
+      try {
+        await page.screenshot({ path: 'test-results/therapist-dashboard-debug.png', fullPage: true });
+        const bodyText = await page.locator('body').textContent().catch(() => '');
+        const pageTitle = await page.title().catch(() => '');
+        const currentUrl = page.url();
+        const html = await page.content().catch(() => '');
+        const hasSidebarInHTML = html.includes('sidebar') || html.includes('Sidebar');
+        
+        throw new Error(
+          `Sidebar not found after ${maxAttempts} attempts. ` +
+          `URL: ${currentUrl}, ` +
+          `Title: ${pageTitle}, ` +
+          `Has 'sidebar' in HTML: ${hasSidebarInHTML}, ` +
+          `Body preview: ${bodyText?.substring(0, 300)}`
+        );
+      } catch (debugError) {
+        throw new Error(`Sidebar not found: ${debugError.message}`);
+      }
+    }
+    
+    // Additional wait to ensure everything is stable
+    await page.waitForTimeout(1000);
   });
 
   test('should load therapist dashboard successfully', async ({ page }) => {
-    await expect(page).toHaveURL(/.*therapist/);
-    await page.waitForTimeout(2000);
+    // Verify URL contains therapist
+    const url = page.url();
+    expect(url).toContain('therapist');
     
-    const dashboardContent = page.locator('body');
-    await expect(dashboardContent).toBeVisible();
+    // Wait for sidebar to be visible
+    const sidebar = page.locator('.sidebar');
+    await expect(sidebar).toBeVisible({ timeout: 10000 });
+    
+    // Wait for main content to be visible
+    const mainContent = page.locator('.main-content');
+    await expect(mainContent).toBeVisible({ timeout: 10000 });
+    
+    // Verify page has loaded
+    expect(await sidebar.isVisible()).toBeTruthy();
+    expect(await mainContent.isVisible()).toBeTruthy();
   });
 
   test('should display therapist navigation menu', async ({ page }) => {
-    await page.waitForTimeout(2000);
+    // Wait for sidebar navigation
+    await page.waitForSelector('.sidebar-nav', { timeout: 10000 });
     
-    // Look for therapist-specific navigation
-    const navElements = [
-      page.locator('text=Dashboard'),
-      page.locator('text=Patients'),
-      page.locator('text=Appointments'),
-      page.locator('text=Questionnaires'),
-      page.locator('text=Slots'),
-      page.locator('text=Therapist')
+    // Look for navigation buttons
+    const navButtons = [
+      page.locator('.sidebar-nav button:has-text("Dashboard")'),
+      page.locator('.sidebar-nav button:has-text("My Patients")'),
+      page.locator('.sidebar-nav button:has-text("My Appointments")'),
+      page.locator('.sidebar-nav button:has-text("Manage Slots")'),
+      page.locator('.sidebar-nav button:has-text("Screening Results")')
     ];
     
-    const visibleNavs = await Promise.all(
-      navElements.map(nav => nav.isVisible().catch(() => false))
-    );
+    // Check if navigation buttons exist
+    let totalNavItems = 0;
+    for (const navButton of navButtons) {
+      const count = await navButton.count();
+      totalNavItems += count;
+    }
     
-    expect(visibleNavs.some(v => v)).toBeTruthy();
+    // Should have at least 5 navigation items
+    expect(totalNavItems).toBeGreaterThanOrEqual(5);
   });
 
   test('should navigate to patients page', async ({ page }) => {
-    await page.waitForTimeout(2000);
+    // Wait for navigation to be ready
+    await page.waitForSelector('.sidebar-nav', { timeout: 10000 });
     
-    const patientsLink = page.locator('text=Patients').or(page.locator('a[href*="patients"]'));
-    if (await patientsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await patientsLink.first().click();
-      await page.waitForTimeout(2000);
-      
-      const url = page.url();
-      if (url.includes('patients')) {
-        await expect(page).toHaveURL(/.*patients/);
-      }
-    }
+    // Look for "My Patients" button
+    const patientsButton = page.locator('.sidebar-nav button:has-text("My Patients")');
+    
+    // Wait for button to be visible
+    await expect(patientsButton.first()).toBeVisible({ timeout: 10000 });
+    
+    // Click the button
+    await patientsButton.first().click();
+    
+    // Wait for navigation
+    await page.waitForURL('**/therapist/patients**', { timeout: 15000 });
+    
+    // Verify URL
+    const url = page.url();
+    expect(url).toContain('/therapist/patients');
   });
 
   test('should navigate to appointments page', async ({ page }) => {
-    await page.waitForTimeout(2000);
+    // Wait for navigation to be ready
+    await page.waitForSelector('.sidebar-nav', { timeout: 10000 });
     
-    const appointmentsLink = page.locator('text=Appointments').or(page.locator('a[href*="appointments"]'));
-    if (await appointmentsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await appointmentsLink.first().click();
-      await page.waitForTimeout(2000);
-      
-      const url = page.url();
-      if (url.includes('appointments')) {
-        await expect(page).toHaveURL(/.*appointments/);
-      }
-    }
+    // Look for "My Appointments" button
+    const appointmentsButton = page.locator('.sidebar-nav button:has-text("My Appointments")');
+    
+    // Wait for button to be visible
+    await expect(appointmentsButton.first()).toBeVisible({ timeout: 10000 });
+    
+    // Click the button
+    await appointmentsButton.first().click();
+    
+    // Wait for navigation
+    await page.waitForURL('**/therapist/appointments**', { timeout: 15000 });
+    
+    // Verify URL
+    const url = page.url();
+    expect(url).toContain('/therapist/appointments');
   });
 
   test('should navigate to questionnaires page', async ({ page }) => {
-    // Quick wait for dashboard
-    await page.waitForLoadState('domcontentloaded', { timeout: 5000 });
-    await page.waitForTimeout(1000);
+    // Wait for navigation to be ready
+    await page.waitForSelector('.sidebar-nav', { timeout: 10000 });
     
-    // Try to find questionnaires link quickly
-    const questionnairesLink = page.locator('a[href*="questionnaire"]').first();
-    const linkExists = await questionnairesLink.count() > 0;
+    // Look for "Screening Results" button (which navigates to questionnaires)
+    const screeningButton = page.locator('.sidebar-nav button:has-text("Screening Results")');
     
-    if (linkExists) {
-      const isVisible = await questionnairesLink.isVisible({ timeout: 3000 }).catch(() => false);
-      if (isVisible) {
-        // Click and wait for navigation with timeout
-        await Promise.race([
-          Promise.all([
-            page.waitForURL('**/questionnaire**', { timeout: 8000 }),
-            questionnairesLink.click()
-          ]),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Navigation timeout')), 10000))
-        ]).catch(() => {
-          // If navigation fails, just verify we're on therapist page
-        });
-        
-        const url = page.url();
-        if (url.includes('questionnaire')) {
-          expect(url).toContain('questionnaire');
-        } else {
-          // Still on therapist dashboard - that's acceptable
-          expect(url).toContain('therapist');
-        }
-      } else {
-        // Link exists but not visible - just verify dashboard
-        expect(page.url()).toContain('therapist');
-      }
-    } else {
-      // Link doesn't exist - verify we're on therapist dashboard
-      expect(page.url()).toContain('therapist');
-    }
+    // Wait for button to be visible
+    await expect(screeningButton.first()).toBeVisible({ timeout: 10000 });
+    
+    // Click the button
+    await screeningButton.first().click();
+    
+    // Wait for navigation to questionnaires page
+    await page.waitForURL('**/therapist/questionnaires**', { timeout: 15000 });
+    
+    // Verify URL
+    const url = page.url();
+    expect(url).toContain('questionnaire');
   });
 
   test('should navigate to slot management page', async ({ page }) => {
-    await page.waitForTimeout(2000);
+    // Wait for navigation to be ready
+    await page.waitForSelector('.sidebar-nav', { timeout: 10000 });
     
-    const slotsLink = page.locator('text=Slots').or(page.locator('text=Slot')).or(page.locator('a[href*="slots"]'));
-    if (await slotsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await slotsLink.first().click();
-      await page.waitForTimeout(2000);
-      
-      const url = page.url();
-      if (url.includes('slots')) {
-        await expect(page).toHaveURL(/.*slots/);
-      }
-    }
+    // Look for "Manage Slots" button
+    const slotsButton = page.locator('.sidebar-nav button:has-text("Manage Slots")');
+    
+    // Wait for button to be visible
+    await expect(slotsButton.first()).toBeVisible({ timeout: 10000 });
+    
+    // Click the button
+    await slotsButton.first().click();
+    
+    // Wait for navigation
+    await page.waitForURL('**/therapist/slots**', { timeout: 15000 });
+    
+    // Verify URL
+    const url = page.url();
+    expect(url).toContain('/therapist/slots');
   });
 
   test('should display patient information or list', async ({ page }) => {
-    await page.waitForTimeout(3000);
+    // Wait for main content to load
+    await page.waitForSelector('.main-content', { timeout: 10000 });
     
-    // Look for patient cards or list
-    const patientElements = page.locator('[class*="patient"], [class*="card"], table');
-    const elementCount = await patientElements.count();
+    // Look for dashboard content elements
+    const dashboardElements = [
+      page.locator('.main-content h1, .main-content h2, .main-content h3'),
+      page.locator('.main-content .welcome-title, .main-content .section-title'),
+      page.locator('.main-content .appointment-card, .main-content .activity-card'),
+      page.locator('.main-content .content-section')
+    ];
     
-    // Dashboard should have loaded
-    expect(await page.locator('body').isVisible()).toBeTruthy();
+    // At least one dashboard element should exist
+    let totalElements = 0;
+    for (const element of dashboardElements) {
+      const count = await element.count();
+      totalElements += count;
+    }
+    
+    // Should have some content
+    expect(totalElements).toBeGreaterThan(0);
+    
+    // Main content should be visible
+    const mainContent = page.locator('.main-content');
+    expect(await mainContent.isVisible()).toBeTruthy();
   });
 
   test('should have logout functionality', async ({ page }) => {
-    await page.waitForTimeout(2000);
+    // Wait for sidebar footer to load
+    await page.waitForSelector('.sidebar-footer', { timeout: 10000 });
     
-    const logoutButton = page.locator('text=Logout').or(page.locator('text=Sign Out'));
+    // Look for logout button in sidebar footer
+    const logoutButton = page.locator('.sidebar-footer button.logout-btn, .sidebar-footer button:has-text("Logout")');
     
-    if (await logoutButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await logoutButton.first().click();
-      await page.waitForTimeout(2000);
-      
-      const url = page.url();
-      expect(url.includes('login') || url === 'http://localhost:3000/' || url.endsWith('/')).toBeTruthy();
-    }
+    // Wait for button to be visible
+    await expect(logoutButton.first()).toBeVisible({ timeout: 10000 });
+    
+    // Click logout
+    await logoutButton.first().click();
+    
+    // Wait for navigation after logout (should go to home page '/')
+    await page.waitForURL(/\/(login|$)/, { timeout: 15000 });
+    
+    // Verify URL - should be home page or login
+    const url = page.url();
+    expect(url === 'http://localhost:3000/' || url.endsWith('/') || url.includes('login')).toBeTruthy();
   });
 });
-

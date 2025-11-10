@@ -157,3 +157,4 @@ Screenshots and videos are saved in `test-results/` directory.
 4. Group related tests in describe blocks
 5. Clean up after tests (logout, clear data if needed)
 
+
