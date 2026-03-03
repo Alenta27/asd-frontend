@@ -36,28 +36,8 @@ const StudentProfilePage = () => {
   const [showGameResults, setShowGameResults] = useState(false);
   const [gameResultId, setGameResultId] = useState(null);
   const [showSimilarCases, setShowSimilarCases] = useState(false);
-  const [progressReports, setProgressReports] = useState(() => [
-    {
-      id: 'report-primary',
-      title: 'Q3 Academic & Social Goals',
-      author: 'Ms. Athiya Krishna',
-      date: '2025-09-30',
-      period: 'Q3 2025',
-      summary: 'Comprehensive update on classroom behavior, communication milestones, and academic engagement.',
-      strengths: 'Stronger peer collaboration and improved task completion during literacy centers.',
-      recommendations: 'Continue guided social stories twice a week and provide structured transition cues.'
-    },
-    {
-      id: 'report-secondary',
-      title: 'Social Skills Improvement Plan',
-      author: 'Dr. Rao Thomas',
-      date: '2025-10-12',
-      period: 'October 2025',
-      summary: 'Therapist feedback on targeted interventions supporting social interaction and self-regulation.',
-      strengths: 'Responsive to visual supports and cooperative play scenarios with familiar peers.',
-      recommendations: 'Introduce weekly mixed-group play sessions and share progress with caregivers bi-weekly.'
-    }
-  ]);
+  const [progressReports, setProgressReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportModalData, setReportModalData] = useState(null);
   const [showCreateReportModal, setShowCreateReportModal] = useState(false);
@@ -75,7 +55,7 @@ const StudentProfilePage = () => {
     const fetchStudent = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:5000/api/teacher/students`, {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/teacher/students`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -97,7 +77,28 @@ const StudentProfilePage = () => {
     };
 
     fetchStudent();
+    fetchReports();
   }, [studentId]);
+
+  const fetchReports = async () => {
+    try {
+      setReportsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/teacher/reports/student/${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProgressReports(data);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (location.state?.showGameResults && location.state?.gameResultId) {
@@ -142,36 +143,50 @@ const StudentProfilePage = () => {
     setShowCreateReportModal(false);
   };
 
-  const handleCreateReportSubmit = (event) => {
+  const handleCreateReportSubmit = async (event) => {
     event.preventDefault();
     if (!newReport.title.trim() || !newReport.summary.trim() || !newReport.date) {
       alert('Please complete all required fields');
       return;
     }
-    const savedReport = {
-      id: `report-${Date.now()}`,
-      title: newReport.title.trim(),
-      author: newReport.author.trim() || 'Teacher',
-      date: clampDateToRange(newReport.date),
-      period: newReport.period.trim() || 'Custom',
-      summary: newReport.summary.trim(),
-      strengths: newReport.strengths.trim(),
-      recommendations: newReport.recommendations.trim()
-    };
-    setProgressReports((prev) => [savedReport, ...prev]);
-    setShowCreateReportModal(false);
-    setActiveTab('reports');
-    setReportModalData(savedReport);
-    setShowReportModal(true);
-    setNewReport({
-      title: '',
-      author: 'Ms. Athiya Krishna',
-      date: clampDateToRange(student?.submittedDate || '2025-09-30'),
-      period: 'Q4 2025',
-      summary: '',
-      strengths: '',
-      recommendations: ''
-    });
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/teacher/reports`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...newReport,
+          studentId: studentId
+        })
+      });
+
+      if (response.ok) {
+        const savedReport = await response.json();
+        setProgressReports((prev) => [savedReport, ...prev]);
+        setShowCreateReportModal(false);
+        setActiveTab('reports');
+        setReportModalData(savedReport);
+        setShowReportModal(true);
+        setNewReport({
+          title: '',
+          author: 'Ms. Athiya Krishna',
+          date: clampDateToRange(student?.submittedDate || '2025-09-30'),
+          period: 'Q4 2025',
+          summary: '',
+          strengths: '',
+          recommendations: ''
+        });
+      } else {
+        alert('Failed to save report');
+      }
+    } catch (error) {
+      console.error('Error creating report:', error);
+      alert('Error creating report');
+    }
   };
 
   const handleReportFieldChange = (field) => (event) => {
@@ -419,35 +434,41 @@ const StudentProfilePage = () => {
               </button>
             </div>
             <div className="space-y-4">
-              {progressReports.map((report) => (
-                <div key={report.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between gap-4 mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{report.title}</h3>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                        <span>Author: {report.author}</span>
-                        <span>•</span>
-                        <span>Date: {clampDateToRange(report.date)}</span>
-                        {report.period && (
-                          <>
-                            <span>•</span>
-                            <span>Period: {report.period}</span>
-                          </>
-                        )}
+              {reportsLoading ? (
+                <div className="text-center py-8 text-gray-500">Loading reports...</div>
+              ) : progressReports.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No progress reports available.</div>
+              ) : (
+                progressReports.map((report) => (
+                  <div key={report._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between gap-4 mb-2">
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{report.title}</h3>
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                          <span>Author: {report.author || 'Teacher'}</span>
+                          <span>•</span>
+                          <span>Date: {new Date(report.date).toLocaleDateString()}</span>
+                          {report.period && (
+                            <>
+                              <span>•</span>
+                              <span>Period: {report.period}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
+                      <button
+                        onClick={() => handleViewReport(report)}
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-semibold"
+                      >
+                        View Report
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleViewReport(report)}
-                      className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-semibold"
-                    >
-                      View Report
-                    </button>
+                    {report.summary && (
+                      <p className="text-sm text-gray-700 line-clamp-2">{report.summary}</p>
+                    )}
                   </div>
-                  {report.summary && (
-                    <p className="text-sm text-gray-700">{report.summary}</p>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}

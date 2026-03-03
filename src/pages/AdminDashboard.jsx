@@ -16,11 +16,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('dashboard');
   const [stats, setStats] = useState({ pendingCount: 0, userCount: 0, screeningCount: 0 });
-  const [screeningTrendsData, setScreeningTrendsData] = useState([
-    { month: 'August', screenings: 52 },
-    { month: 'September', screenings: 61 },
-    { month: 'October', screenings: 75 },
-  ]);
+  const [screeningTrendsData, setScreeningTrendsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -30,22 +26,27 @@ const AdminDashboard = () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:5000/api/admin/stats', {
+        const response = await fetch('http://localhost:5000/api/admin/metrics', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
         if (!response.ok) throw new Error('Failed to fetch stats');
-        const data = await response.json();
+        const result = await response.json();
+        
+        // Handle both new and legacy response formats
+        const data = result.data || result;
         setStats({
-          pendingCount: data.pendingCount || 0,
-          userCount: data.userCount || 0,
-          screeningCount: data.screeningCount || 0
+          pendingCount: data.pendingApprovals || data.pendingCount || 0,
+          userCount: data.totalActiveUsers || data.userCount || 0,
+          screeningCount: data.screeningsThisMonth || data.screeningCount || 0
         });
       } catch (err) {
         console.error('Error fetching stats:', err);
         setError(err.message);
+        // Fallback to zero values if API fails
+        setStats({ pendingCount: 0, userCount: 0, screeningCount: 0 });
       } finally {
         setLoading(false);
       }
@@ -65,15 +66,47 @@ const AdminDashboard = () => {
           }
         });
         if (!response.ok) throw new Error('Failed to fetch screening trends');
-        const data = await response.json();
-
-        setScreeningTrendsData([
-          { month: 'August', screenings: data.screeningCounts[0] },
-          { month: 'September', screenings: data.screeningCounts[1] },
-          { month: 'October', screenings: data.screeningCounts[2] },
-        ]);
+        const result = await response.json();
+        
+        // Handle new API format
+        const trendsData = result.data || result.screeningCounts;
+        
+        if (Array.isArray(trendsData) && trendsData.length > 0) {
+          // Check if it's the new format (array of objects) or old format (array of numbers)
+          if (typeof trendsData[0] === 'object' && trendsData[0].month) {
+            setScreeningTrendsData(trendsData);
+          } else {
+            // Legacy format fallback
+            const months = ['August', 'September', 'October', 'November', 'December', 'January'];
+            setScreeningTrendsData(
+              trendsData.slice(0, 6).map((count, idx) => ({
+                month: months[idx],
+                screenings: count
+              }))
+            );
+          }
+        } else {
+          // Fallback to empty data
+          setScreeningTrendsData([
+            { month: 'August', screenings: 0 },
+            { month: 'September', screenings: 0 },
+            { month: 'October', screenings: 0 },
+            { month: 'November', screenings: 0 },
+            { month: 'December', screenings: 0 },
+            { month: 'January', screenings: 0 }
+          ]);
+        }
       } catch (err) {
         console.error('Error fetching screening trends:', err);
+        // Fallback to empty data on error
+        setScreeningTrendsData([
+          { month: 'August', screenings: 0 },
+          { month: 'September', screenings: 0 },
+          { month: 'October', screenings: 0 },
+          { month: 'November', screenings: 0 },
+          { month: 'December', screenings: 0 },
+          { month: 'January', screenings: 0 }
+        ]);
       }
     };
 
@@ -272,21 +305,18 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Screening Trends Chart */}
             <div className="bg-white rounded-xl p-6 shadow-md">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Screening Trends: August - October</h3>
-              <p className="text-sm text-gray-600 mb-4">This data shows steady month-over-month growth as participation increases within the targeted range.</p>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Screening Trends: August - January</h3>
+              <p className="text-sm text-gray-600 mb-4">Real-time screening data from database showing monthly trends.</p>
               <div className="flex flex-wrap gap-4 mb-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">August:</span>
-                  <span className="text-base font-semibold text-gray-800">52</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">September:</span>
-                  <span className="text-base font-semibold text-gray-800">61</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">October:</span>
-                  <span className="text-base font-semibold text-gray-800">75</span>
-                </div>
+                {screeningTrendsData.map((data, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">{data.month}:</span>
+                    <span className="text-base font-semibold text-gray-800">{data.screenings}</span>
+                  </div>
+                ))}
+                {screeningTrendsData.length === 0 && (
+                  <span className="text-sm text-gray-400">No data available</span>
+                )}
               </div>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={screeningTrendsData}>

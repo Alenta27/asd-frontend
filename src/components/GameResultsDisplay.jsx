@@ -13,7 +13,7 @@ export default function GameResultsDisplay({ gameResultId, studentId, onClose, o
   const fetchGameResult = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/teacher/social-response-game/${gameResultId}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/teacher/social-response-game/${gameResultId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }

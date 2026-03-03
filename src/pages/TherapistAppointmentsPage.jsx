@@ -186,7 +186,7 @@ const TherapistAppointmentsPage = () => {
         </div>
         
         <nav className="sidebar-nav">
-          <button onClick={() => handleNavClick('/therapist')} className="nav-item">
+          <button onClick={() => handleNavClick('/therapist/dashboard')} className="nav-item">
             <FiHome className="nav-icon" />
             <span>Dashboard</span>
           </button>
@@ -194,9 +194,13 @@ const TherapistAppointmentsPage = () => {
             <FiUsers className="nav-icon" />
             <span>My Patients</span>
           </button>
-          <button onClick={() => handleNavClick('/therapist/appointments')} className="nav-item active">
+          <button onClick={() => handleNavClick('/therapist/schedule')} className="nav-item">
             <FiCalendar className="nav-icon" />
             <span>Schedule</span>
+          </button>
+          <button onClick={() => handleNavClick('/therapist/appointments')} className="nav-item active">
+            <FiCalendar className="nav-icon" />
+            <span>My Appointments</span>
           </button>
           <button onClick={() => handleNavClick('/therapist/slots')} className="nav-item">
             <FiCalendar className="nav-icon" />
@@ -225,7 +229,7 @@ const TherapistAppointmentsPage = () => {
       <div className="main-content">
         <div className="main-header">
           <div className="welcome-section">
-            <h1 className="welcome-title">Schedule</h1>
+            <h1 className="welcome-title">My Appointments</h1>
             <p className="welcome-subtitle">View and manage all your scheduled appointments</p>
           </div>
           <button className="assistant-trigger" onClick={() => setShowAssistant(true)}>

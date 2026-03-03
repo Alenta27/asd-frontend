@@ -17,7 +17,7 @@ const HowItWorksPage = () => {
       id: 1,
       title: "Provide a Sample",
       icon: "📤",
-      description: "Getting started is easy. Using our secure platform, you provide a screening sample. For our voice analysis, simply record a short clip of vocalization. For our visual screening, upload a clear facial photograph. No invasive procedures, just simple inputs.",
+      description: "Getting started is easy. Using our secure platform, you provide a screening sample. For our speech therapy, children record practice words and phrases. For our visual screening, upload a clear facial photograph. No invasive procedures, just simple inputs.",
       color: "#3B82F6" // Blue
     },
     {

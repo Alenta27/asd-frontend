@@ -35,6 +35,7 @@ const mockPrevalenceData = [
   { year: 2016, rate: 18.5, source: 'CDC' },
   { year: 2020, rate: 23.0, source: 'CDC' },
   { year: 2024, rate: 32.5, source: 'CDC' },
+  { year: 2025, rate: 34.2, source: 'CDC' },
 ];
 
 const mockGenderData = [
@@ -45,12 +46,13 @@ const mockGenderData = [
   { year: 2016, boys: 28.1, girls: 6.8 },
   { year: 2020, boys: 35.2, girls: 8.9 },
   { year: 2024, boys: 50.2, girls: 12.8 },
+  { year: 2025, boys: 53.4, girls: 13.5 },
 ];
 
 const mockRegionalData = [
-  { country: 'USA', prevalence: 32.5, source: 'CDC 2024' },
-  { country: 'UK', prevalence: 28.5, source: 'NHS 2024' },
-  { country: 'Canada', prevalence: 27.2, source: 'Statistics Canada' },
+  { country: 'USA', prevalence: 34.2, source: 'CDC 2025' },
+  { country: 'UK', prevalence: 29.8, source: 'NHS 2025' },
+  { country: 'Canada', prevalence: 28.5, source: 'Statistics Canada 2025' },
   { country: 'Australia', prevalence: 26.8, source: 'AIHW 2023' },
   { country: 'Japan', prevalence: 18.5, source: 'WHO 2023' },
   { country: 'Germany', prevalence: 22.3, source: 'RKI 2023' },
@@ -61,6 +63,17 @@ const mockRegionalData = [
 const mockArticles = [
   {
     id: 1,
+    year: 2025,
+    title: 'Latest Breakthroughs in ASD Diagnostic Biomarkers',
+    authors: 'Anderson et al.',
+    source: 'Nature Medicine',
+    finding: 'Blood-based biomarkers show 92% accuracy in early ASD detection.',
+    abstract:
+      'This study identifies a panel of metabolic biomarkers that can distinguish ASD from neurotypical development in toddlers with high sensitivity and specificity.',
+    sourceUrl: 'https://www.nature.com/nm/',
+  },
+  {
+    id: 2,
     year: 2024,
     title: 'Global Autism Report: Trends and Trajectories',
     authors: 'WHO Research Team',
@@ -562,7 +575,7 @@ const RightSidebar = () => (
       </div>
       <div className="stats-card">
         <p className="stat-label">Latest Update</p>
-        <p className="stat-value">Oct 2025</p>
+        <p className="stat-value">Dec 2025</p>
       </div>
       <div className="stats-card">
         <p className="stat-label">Screening Algorithms</p>

@@ -170,13 +170,13 @@ const SlotManagementPage = () => {
       <div className="w-64 bg-blue-200 shadow-lg flex flex-col overflow-hidden">
         <div className="p-6 border-b border-blue-300 flex items-center gap-2">
           <button
-            onClick={() => navigate('/therapist-dashboard')}
+            onClick={() => navigate('/therapist')}
             className="text-blue-600 hover:text-blue-800 transition"
           >
             <FaArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-blue-800">NeuroTrack</h1>
+            <h1 className="text-2xl font-bold text-blue-800">CORTEXA</h1>
             <p className="text-xs text-blue-600">Therapist Portal</p>
           </div>
         </div>
@@ -186,7 +186,7 @@ const SlotManagementPage = () => {
           <ul className="space-y-2">
             <li>
               <button
-                onClick={() => navigate('/therapist-dashboard')}
+                onClick={() => navigate('/therapist/dashboard')}
                 className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-100 rounded-lg transition flex items-center gap-2"
               >
                 <span>🏠</span> Dashboard
@@ -194,7 +194,7 @@ const SlotManagementPage = () => {
             </li>
             <li>
               <button
-                onClick={() => navigate('/therapist-patients')}
+                onClick={() => navigate('/therapist/patients')}
                 className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-100 rounded-lg transition flex items-center gap-2"
               >
                 <span>👥</span> My Patients
@@ -202,7 +202,7 @@ const SlotManagementPage = () => {
             </li>
             <li>
               <button
-                onClick={() => navigate('/therapist-schedule')}
+                onClick={() => navigate('/therapist/schedule')}
                 className="w-full text-left px-3 py-2 text-blue-600 hover:bg-blue-100 rounded-lg transition flex items-center gap-2"
               >
                 <span>📅</span> Schedule

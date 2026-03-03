@@ -1,0 +1,61 @@
+.progress-chart-container {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 24px;
+}
+
+.progress-chart-header {
+  margin-bottom: 20px;
+}
+
+.progress-chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.progress-chart-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.progress-chart-loading,
+.progress-chart-error {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.progress-chart-error {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.progress-insight-card {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f0f9ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 4px;
+}
+
+.insight-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+  margin: 0 0 8px 0;
+}
+
+.insight-text {
+  font-size: 14px;
+  color: #1e3a8a;
+  margin: 0;
+  line-height: 1.5;
+}

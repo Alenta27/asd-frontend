@@ -12,10 +12,20 @@ const AdminChildrenRegistrationPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedChild, setSelectedChild] = useState(null);
+  const [therapists, setTherapists] = useState([]);
+  const [selectedTherapist, setSelectedTherapist] = useState('');
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     fetchChildrenData();
+    fetchTherapists();
   }, []);
+
+  useEffect(() => {
+    if (selectedChild) {
+      setSelectedTherapist(selectedChild.therapist_user_id || '');
+    }
+  }, [selectedChild]);
 
   const fetchChildrenData = async () => {
     try {
@@ -35,6 +45,102 @@ const AdminChildrenRegistrationPage = () => {
       console.error('Error fetching children data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTherapists = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/admin/therapists', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTherapists(data);
+      }
+    } catch (error) {
+      console.error('Error fetching therapists:', error);
+    }
+  };
+
+  const handleAssignTherapist = async () => {
+    if (!selectedChild || !selectedTherapist) {
+      alert('Please select a therapist');
+      return;
+    }
+
+    try {
+      setAssigning(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:5000/api/admin/children/${selectedChild._id}/assign-therapist`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ therapistId: selectedTherapist })
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setChildren(children.map(c => 
+          c._id === selectedChild._id 
+            ? { ...c, therapist_user_id: selectedTherapist }
+            : c
+        ));
+        setSelectedChild({ ...selectedChild, therapist_user_id: selectedTherapist });
+        alert('Therapist assigned successfully!');
+      } else {
+        alert('Failed to assign therapist');
+      }
+    } catch (error) {
+      console.error('Error assigning therapist:', error);
+      alert('Error assigning therapist');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleUnassignTherapist = async () => {
+    if (!selectedChild) return;
+
+    try {
+      setAssigning(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:5000/api/admin/children/${selectedChild._id}/unassign-therapist`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.ok) {
+        setChildren(children.map(c => 
+          c._id === selectedChild._id 
+            ? { ...c, therapist_user_id: null }
+            : c
+        ));
+        setSelectedChild({ ...selectedChild, therapist_user_id: null });
+        setSelectedTherapist('');
+        alert('Therapist unassigned successfully!');
+      } else {
+        alert('Failed to unassign therapist');
+      }
+    } catch (error) {
+      console.error('Error unassigning therapist:', error);
+      alert('Error unassigning therapist');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -403,6 +509,61 @@ const AdminChildrenRegistrationPage = () => {
                         <p className="text-yellow-800 font-semibold">No report generated yet</p>
                       </div>
                     )}
+                  </div>
+
+                  {/* Therapist Assignment */}
+                  <div className="mb-8 pb-8 border-b border-gray-200">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Therapist Assignment</h3>
+                    <div className="bg-purple-50 p-6 rounded-lg border border-purple-200 space-y-4">
+                      <div>
+                        <label className="block text-xs text-gray-600 font-semibold uppercase tracking-wide mb-3">
+                          Assign Therapist
+                        </label>
+                        <select
+                          value={selectedTherapist}
+                          onChange={(e) => setSelectedTherapist(e.target.value)}
+                          disabled={assigning}
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                          <option value="">-- Select a Therapist --</option>
+                          {therapists.map((therapist) => (
+                            <option key={therapist.id} value={therapist.id}>
+                              {therapist.name} ({therapist.email})
+                            </option>
+                          ))}
+                        </select>
+                        {therapists.length === 0 && (
+                          <p className="text-sm text-purple-700 mt-2">No active therapists available</p>
+                        )}
+                      </div>
+
+                      {selectedChild?.therapist_user_id && (
+                        <div className="bg-white p-3 rounded border border-purple-300 text-sm">
+                          <p className="text-gray-700">
+                            <span className="font-semibold">Currently assigned to:</span> {selectedChild.therapist_user_id}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleAssignTherapist}
+                          disabled={assigning || !selectedTherapist || selectedTherapist === selectedChild?.therapist_user_id}
+                          className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+                        >
+                          {assigning ? 'Assigning...' : 'Assign Therapist'}
+                        </button>
+                        {selectedChild?.therapist_user_id && (
+                          <button
+                            onClick={handleUnassignTherapist}
+                            disabled={assigning}
+                            className="px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
+                          >
+                            {assigning ? 'Unassigning...' : 'Remove Therapist'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import { sanitizeUserObject } from '../utils/subscriptionUtils';
 
-const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "3074679378-fbmg47osjqajq7u4cv0qja7svo00pv3m.apps.googleusercontent.com";
+const googleClientId = (process.env.REACT_APP_GOOGLE_CLIENT_ID || "3074679378-fbmg47osjqajq7u4cv0qja7svo00pv3m.apps.googleusercontent.com").trim();
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -96,6 +97,10 @@ export default function LoginPage() {
         localStorage.setItem(roleIdField[role], res.data.user[roleIdField[role]]);
       }
       
+      if (res.data.user) {
+        localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
+      }
+      
       handleLoginSuccess(res.data.token);
     } catch (err) {
       setMessage(err.response?.data?.message || 'Sign in failed.');
@@ -110,7 +115,8 @@ export default function LoginPage() {
       sessionStorage.clear();
       
       const token = credentialResponse.credential;
-      const res = await axios.post('http://localhost:5000/api/auth/google', { token });
+      const selectedRole = role;
+      const res = await axios.post('http://localhost:5000/api/auth/google', { token, expectedRole: selectedRole });
       
       console.log('🔍 Google Auth Response:', {
         isNewUser: res.data.isNewUser,
@@ -121,6 +127,12 @@ export default function LoginPage() {
         hasResearcherId: !!res.data.user?.researcherId,
         hasAdminId: !!res.data.user?.adminId
       });
+
+      const backendRole = res.data.user?.role ? String(res.data.user.role).toLowerCase() : '';
+      if (!res.data.isNewUser && backendRole && backendRole !== selectedRole) {
+        setMessage(`This Google account is registered as ${res.data.user.role}. Please choose ${res.data.user.role} to sign in.`);
+        return;
+      }
       
       if (res.data.user) {
         const roleIdField = {
@@ -135,6 +147,7 @@ export default function LoginPage() {
         if (idField && res.data.user[idField]) {
           localStorage.setItem(idField, res.data.user[idField]);
         }
+        localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
       }
       
       if (res.data.isNewUser) {
@@ -206,7 +219,7 @@ export default function LoginPage() {
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
-      <div className="min-h-screen md:flex font-sans">
+    <div className="min-h-screen md:flex font-sans">
         <div
           className="relative hidden md:block md:w-1/2 bg-cover bg-center"
           style={{ backgroundImage: 'url(/images/login-inspiration-bg.jpg)' }}
@@ -292,8 +305,12 @@ export default function LoginPage() {
             <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
-                onError={() => setMessage('Google Login Failed')}
+                onError={() => {
+                  console.error('❌ GoogleLogin onError triggered');
+                  setMessage('Google Login Failed');
+                }}
                 width={350}
+                useOneTap={false}
               />
             </div>
             {message && (

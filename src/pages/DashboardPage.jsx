@@ -691,6 +691,12 @@ const DashboardPage = () => {
                           >
                             Manage Appointments
                           </button>
+                          <button
+                            onClick={() => navigate(`/live-gaze-analysis?patientId=${child._id || child.id}`)}
+                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold text-sm"
+                          >
+                            Live Gaze Analysis
+                          </button>
                         </div>
                       </div>
                     ))}

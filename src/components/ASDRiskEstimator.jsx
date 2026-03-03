@@ -77,7 +77,7 @@ const ASDRiskEstimator = ({ studentId, onClose }) => {
     if (!risk) return 'text-gray-600';
     const riskLower = risk.toLowerCase();
     if (riskLower === 'high') return 'text-red-600';
-    if (riskLower === 'moderate') return 'text-yellow-600';
+    if (riskLower === 'medium') return 'text-yellow-600';
     return 'text-green-600';
   };
 
@@ -85,7 +85,7 @@ const ASDRiskEstimator = ({ studentId, onClose }) => {
     if (!risk) return 'bg-gray-100';
     const riskLower = risk.toLowerCase();
     if (riskLower === 'high') return 'bg-red-100';
-    if (riskLower === 'moderate') return 'bg-yellow-100';
+    if (riskLower === 'medium') return 'bg-yellow-100';
     return 'bg-green-100';
   };
 
@@ -93,7 +93,7 @@ const ASDRiskEstimator = ({ studentId, onClose }) => {
     if (!risk) return '❓';
     const riskLower = risk.toLowerCase();
     if (riskLower === 'high') return '🔴';
-    if (riskLower === 'moderate') return '🟠';
+    if (riskLower === 'medium') return '🟠';
     return '🟢';
   };
 
@@ -203,7 +203,7 @@ const ASDRiskEstimator = ({ studentId, onClose }) => {
                   {result.risk.toLowerCase() === 'high' && (
                     <p className="note-text">Consider referring the child for comprehensive evaluation by a specialist.</p>
                   )}
-                  {result.risk.toLowerCase() === 'moderate' && (
+                  {result.risk.toLowerCase() === 'medium' && (
                     <p className="note-text">Monitor progress over the next 2 weeks. Consider additional screening if concerns persist.</p>
                   )}
                   {result.risk.toLowerCase() === 'low' && (

@@ -28,6 +28,26 @@ export default function ScreeningTools() {
               Answer a series of questions to get a preliminary screening result.
             </p>
           </Link>
+
+          <Link to="/live-gaze-analysis" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition">
+            <div className="flex items-center gap-3 text-purple-700">
+              <FaFileMedicalAlt className="text-2xl" />
+              <h2 className="text-xl font-semibold">Live Gaze Analysis</h2>
+            </div>
+            <p className="text-gray-600 mt-2 text-sm">
+              Real-time monitoring of patient attention and gaze patterns.
+            </p>
+          </Link>
+
+          <Link to="/speech-therapy" className="block bg-white rounded-lg shadow p-6 hover:shadow-md transition">
+            <div className="flex items-center gap-3 text-green-700">
+              <FaClipboardList className="text-2xl" />
+              <h2 className="text-xl font-semibold">Speech Therapy</h2>
+            </div>
+            <p className="text-gray-600 mt-2 text-sm">
+              Practice communication skills with guided feedback and progress tracking.
+            </p>
+          </Link>
         </div>
       </div>
     </div>

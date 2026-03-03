@@ -2,15 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiFileText, FiSettings, FiLogOut, FiCalendar, FiHelpCircle, FiX } from 'react-icons/fi';
 import ProgressTracker from '../components/ProgressTracker';
+import ProgressChart from '../components/ProgressChart';
+import BehavioralMetrics from '../components/BehavioralMetrics';
+import AppointmentManager from '../components/AppointmentManager';
 import './TherapistDashboard.css';
 
 const Sidebar = ({ activeNav, onNavClick, onLogout, therapistName }) => {
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: FiHome, path: '/therapist' },
+    { id: 'dashboard', label: 'Dashboard', icon: FiHome, path: '/therapist/dashboard' },
     { id: 'patients', label: 'My Patients', icon: FiUsers, path: '/therapist/patients' },
+    { id: 'schedule', label: 'Schedule', icon: FiCalendar, path: '/therapist/schedule' },
     { id: 'appointments', label: 'My Appointments', icon: FiCalendar, path: '/therapist/appointments' },
     { id: 'slots', label: 'Manage Slots', icon: FiCalendar, path: '/therapist/slots' },
     { id: 'screening', label: 'Screening Results', icon: FiFileText, path: '/therapist/questionnaires' },
+    { id: 'gaze', label: 'Live Gaze Analysis', icon: FiUsers, path: '/therapist/gaze-sessions' },
+    { id: 'speech-therapy', label: 'Speech Therapy', icon: FiUsers, path: '/therapist/speech-therapy' },
   ];
 
   return (
@@ -47,7 +53,17 @@ const Sidebar = ({ activeNav, onNavClick, onLogout, therapistName }) => {
   );
 };
 
-const MainContent = ({ username, therapistName, appointments, clients, loading, onOpenAssistant }) => {
+const MainContent = ({ username, therapistName, appointments, clients, loading, onOpenAssistant, navigate }) => {
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [selectedActivityPatient, setSelectedActivityPatient] = useState(null);
+  
+  useEffect(() => {
+    if (Array.isArray(clients) && clients.length > 0 && !selectedPatientId) {
+      setSelectedPatientId(clients[0]._id || clients[0].id);
+    }
+  }, [clients, selectedPatientId]);
+  
   const upcomingAppointments = Array.isArray(appointments) 
     ? appointments.filter(a => a.status === 'Scheduled' || a.status === 'Pending').slice(0, 3)
     : [];
@@ -55,8 +71,9 @@ const MainContent = ({ username, therapistName, appointments, clients, loading, 
   const recentActivity = Array.isArray(clients)
     ? clients.slice(0, 3).map(client => ({
         name: client.name,
+        patientId: client._id,
         activity: 'Completed new questionnaire',
-        date: new Date(client.updatedAt).toLocaleDateString(),
+        date: new Date(client.updatedAt || client.createdAt).toLocaleDateString(),
       }))
     : [];
 
@@ -83,7 +100,7 @@ const MainContent = ({ username, therapistName, appointments, clients, loading, 
       <div className="content-section">
         <div className="section-header">
           <h2 className="section-title">Upcoming Appointments</h2>
-          <button className="view-all-btn">View All</button>
+          <button className="view-all-btn" onClick={() => navigate('/therapist/appointments')}>View All</button>
         </div>
         
         <div className="appointments-grid">
@@ -109,7 +126,16 @@ const MainContent = ({ username, therapistName, appointments, clients, loading, 
                   </p>
                   {appointment.notes && <p className="appointment-notes">{appointment.notes}</p>}
                 </div>
-                <button className="appointment-action-btn">
+                <button 
+                  className="appointment-action-btn"
+                  onClick={() => {
+                    if (appointment.clientId || appointment.childId) {
+                      navigate(`/therapist/patients/${appointment.clientId || appointment.childId}`);
+                    } else {
+                      alert('Patient ID not available for this appointment');
+                    }
+                  }}
+                >
                   View Patient Profile
                 </button>
               </div>
@@ -121,7 +147,7 @@ const MainContent = ({ username, therapistName, appointments, clients, loading, 
       <div className="content-section">
         <div className="section-header">
           <h2 className="section-title">Recent Patient Activity</h2>
-          <button className="view-all-btn">View All</button>
+          <button className="view-all-btn" onClick={() => navigate('/therapist/patients')}>View All</button>
         </div>
         
         <div className="activity-grid">
@@ -138,12 +164,75 @@ const MainContent = ({ username, therapistName, appointments, clients, loading, 
                 </div>
                 <div className="activity-footer">
                   <p className="activity-date">{activity.date}</p>
-                  <button className="activity-action-btn">View Details</button>
+                  <button 
+                    className="activity-action-btn"
+                    onClick={() => {
+                      if (activity.patientId) {
+                        navigate(`/therapist/patients/${activity.patientId}`);
+                      } else {
+                        alert('Patient details not available');
+                      }
+                    }}
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
             ))
           )}
         </div>
+      </div>
+
+      {/* Patient Selection for DREAM Dataset Analysis */}
+      <div className="content-section">
+        <div className="section-header">
+          <h2 className="section-title">DREAM Dataset Analysis</h2>
+          <div className="patient-selector">
+            <label htmlFor="patient-select" className="patient-selector-label">
+              Select Patient:
+            </label>
+            <select
+              id="patient-select"
+              className="patient-selector-input"
+              value={selectedPatientId || ''}
+              onChange={(e) => setSelectedPatientId(e.target.value)}
+            >
+              {Array.isArray(clients) && clients.length > 0 ? (
+                clients.map((client) => (
+                  <option key={client._id || client.id} value={client._id || client.id}>
+                    {client.name} {client.age ? `(${client.age}y)` : ''}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No patients available</option>
+              )}
+            </select>
+          </div>
+        </div>
+
+        {selectedPatientId && (
+          <>
+            {/* Behavioral Metrics */}
+            <div className="metrics-section">
+              <BehavioralMetrics patientId={selectedPatientId} sessionId={selectedSessionId} />
+            </div>
+
+            {/* Progress Chart */}
+            <div className="progress-section">
+              <ProgressChart patientId={selectedPatientId} metric="gaze" />
+            </div>
+
+            {/* Motor Activity Chart */}
+            <div className="progress-section">
+              <ProgressChart patientId={selectedPatientId} metric="kinematic" />
+            </div>
+
+            {/* Session Management */}
+            <div className="session-management-section">
+              <AppointmentManager patientId={selectedPatientId} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Progress Tracker Section */}
@@ -265,7 +354,7 @@ Clinical Significance: Early intervention with evidence-based practices (ABA, sp
 Severity Levels:
 • Mild: Subtle behavioral differences; child may "mask" symptoms
   → Recommendation: Social skills training, sensory support
-• Moderate: Clear differences in communication & behavior
+• Medium: Clear differences in communication & behavior
   → Recommendation: Structured ABA, speech therapy, sensory integration
 • Severe: Significant support needs; communication challenges
   → Recommendation: Intensive ABA, augmentative communication, specialized care
@@ -277,7 +366,7 @@ Next Steps: Correlate findings with behavioral observations and parent reports.`
       response: `🎯 EVIDENCE-BASED INTERVENTIONS FOR ASD
 
 ABA (Applied Behavior Analysis)
-• 20-40 hrs/week is gold standard for moderate-severe cases
+• 20-40 hrs/week is gold standard for Medium-Severe cases
 • Focuses on reinforcing desired behaviors, reducing challenging behaviors
 
 Speech & Language Therapy
@@ -376,7 +465,7 @@ Creating Sensory-Friendly Spaces:
       }
     }
     
-    return `I'm here to help with ASD clinical guidance! You can ask me about:\n• ASD explanation & severity levels\n• Interpreting CNN/MRI results\n• Evidence-based interventions & therapy plans\n• Parent communication strategies\n• Session documentation & progress tracking\n• Latest research & best practices\n• Sensory integration techniques\n\n**Try asking:** "Suggest interventions for moderate ASD" or "How do I explain results to parents?"`;
+    return `I'm here to help with ASD clinical guidance! You can ask me about:\n• ASD explanation & severity levels\n• Interpreting CNN/MRI results\n• Evidence-based interventions & therapy plans\n• Parent communication strategies\n• Session documentation & progress tracking\n• Latest research & best practices\n• Sensory integration techniques\n\n**Try asking:** "Suggest interventions for Medium risk ASD" or "How do I explain results to parents?"`;
   };
 
   const handleAssistantSend = () => {
@@ -427,6 +516,7 @@ Creating Sensory-Friendly Spaces:
         clients={clients}
         loading={loading}
         onOpenAssistant={openAssistant}
+        navigate={navigate}
       />
       {showAssistant && (
         <div className="assistant-overlay">
@@ -453,8 +543,8 @@ Creating Sensory-Friendly Spaces:
               )}
               {assistantMessages.length === 0 && (
                 <div className="assistant-prompts">
-                  <button className="assistant-prompt" onClick={() => handleAssistantPrompt("Suggest interventions for moderate ASD age 8")}>
-                    💡 Suggest interventions for moderate ASD
+                  <button className="assistant-prompt" onClick={() => handleAssistantPrompt("Suggest interventions for Medium risk ASD age 8")}>
+                    💡 Suggest interventions for Medium risk ASD
                   </button>
                   <button className="assistant-prompt" onClick={() => handleAssistantPrompt("How do I explain ASD results to parents empathetically?")}>
                     💬 Explain results to parents

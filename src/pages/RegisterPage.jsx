@@ -3,6 +3,7 @@ import axios from 'axios';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import { Link, useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { sanitizeUserObject } from '../utils/subscriptionUtils';
 
 const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "3074679378-fbmg47osjqajq7u4cv0qja7svo00pv3m.apps.googleusercontent.com";
 
@@ -150,6 +151,10 @@ export default function RegisterPage() {
         localStorage.setItem(roleIdField[role], res.data.user[roleIdField[role]]);
       }
       
+      if (res.data.user) {
+        localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
+      }
+      
       if (role === 'admin') {
         navigate('/admin');
       } else if (role === 'researcher') {
@@ -174,13 +179,24 @@ export default function RegisterPage() {
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       const token = credentialResponse.credential;
-      const res = await axios.post('http://localhost:5000/api/auth/google', { token });
+      const selectedRole = role;
+      const res = await axios.post('http://localhost:5000/api/auth/google', { token, expectedRole: selectedRole });
+      const backendRole = res.data.user?.role ? String(res.data.user.role).toLowerCase() : '';
+
+      if (!res.data.isNewUser && backendRole && backendRole !== selectedRole) {
+        setMessage(`This Google account is registered as ${res.data.user.role}. Please choose ${res.data.user.role} to sign in.`);
+        return;
+      }
       
       if (res.data.isNewUser) {
         localStorage.clear();
       }
       
       localStorage.setItem('token', res.data.token);
+      
+      if (res.data.user) {
+        localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
+      }
       
       // Check the isNewUser signal from the backend
       if (res.data.isNewUser) {
@@ -215,7 +231,7 @@ export default function RegisterPage() {
   const eyeOffIcon = ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.91 4.24A9.97 9.97 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.94 4.06M2 2l20 20"></path></svg> );
 
   return (
-    <GoogleOAuthProvider clientId={googleClientId}>
+      <GoogleOAuthProvider clientId={googleClientId}>
       <div className="min-h-screen md:flex font-sans">
         
         <div 
@@ -384,6 +400,6 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
-  </GoogleOAuthProvider>
+    </GoogleOAuthProvider>
   );
 }

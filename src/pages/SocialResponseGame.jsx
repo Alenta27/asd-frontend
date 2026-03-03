@@ -157,7 +157,7 @@ export default function SocialResponseGame() {
 
       console.log('Submitting game data:', payload);
 
-      const response = await fetch('http://localhost:5000/api/teacher/social-response-game', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/teacher/social-response-game`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

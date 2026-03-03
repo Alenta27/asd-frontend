@@ -1,5 +1,5 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -26,15 +26,23 @@ import TeacherStudentsPage from './pages/TeacherStudentsPage';
 import TeacherScreeningsPage from './pages/TeacherScreeningsPage';
 import TeacherReportsPage from './pages/TeacherReportsPage';
 import StudentProfilePage from './pages/StudentProfilePage';
+import TeacherBehavioralAssessmentsPage from './pages/TeacherBehavioralAssessmentsPage';
+import TeacherBehavioralAssessmentDetailPage from './pages/TeacherBehavioralAssessmentDetailPage';
+import BehavioralAnalysisReportPage from './pages/BehavioralAnalysisReportPage';
 import TherapistPatientsPage from './pages/TherapistPatientsPage';
+import TherapistPatientProfilePage from './pages/TherapistPatientProfilePage';
 import TherapistQuestionnairesPage from './pages/TherapistQuestionnairesPage';
 import TherapistSlotManagement from './pages/TherapistSlotManagement';
 import TherapistAppointmentsPage from './pages/TherapistAppointmentsPage';
+import TherapistSchedulePage from './pages/TherapistSchedulePage';
 import ResearchUsersPage from './pages/ResearchUsersPage';
 import ResearchDatasetPage from './pages/ResearchDatasetPage';
 import LearnMorePage from './pages/LearnMorePage';
-import VoiceScreeningPage from './pages/VoiceScreeningPage';
+import SpeechTherapyChildPage from './pages/SpeechTherapyChildPage.jsx';
+import SpeechTherapyDashboard from './pages/SpeechTherapyDashboard';
 import MRIScreeningPage from './pages/MRIScreeningPage';
+import GazeSnapshotCapture from './components/GazeSnapshotCapture';
+import GazeDashboard from './pages/GazeDashboard';
 import QuestionnairePage from './pages/QuestionnairePage';
 import HowItWorksPage from './pages/HowItWorksPage';
 import FeaturesPage from './pages/FeaturesPage';
@@ -47,13 +55,16 @@ import ParentCareTeamPage from './pages/ParentCareTeamPage';
 import ParentResourcesPage from './pages/ParentResourcesPage';
 import ParentSettingsPage from './pages/ParentSettingsPage';
 import PaymentPage from './pages/PaymentPage';
+import { cleanupExpiredSubscription } from './utils/subscriptionUtils';
 
 function App() {
-  const googleClientId = "3074679378-fbmg47osjqajq7u4cv0qja7svo00pv3m.apps.googleusercontent.com";
+  useEffect(() => {
+    // CRITICAL: Enforce time-based Pro expiry on every app boot/refresh
+    cleanupExpiredSubscription();
+  }, []);
 
   return (
-    <GoogleOAuthProvider clientId={googleClientId}>
-      <Router>
+    <Router>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
@@ -65,8 +76,9 @@ function App() {
           <Route path="/select-role" element={<SelectRolePage />} />
 
           {/* Public Screening & Info Routes */}
-          <Route path="/voice-screening" element={<VoiceScreeningPage />} />
+          <Route path="/speech-therapy" element={<SpeechTherapyChildPage />} />
           <Route path="/mri-screening" element={<MRIScreeningPage />} />
+          <Route path="/live-gaze-analysis" element={<GazeSnapshotCapture />} />
           <Route path="/questionnaire" element={<QuestionnairePage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/learn-more" element={<LearnMorePage />} />
@@ -99,8 +111,11 @@ function App() {
           <Route path="/admin/analytics" element={<AdminDashboard />} />
           <Route path="/admin/trends" element={<AdminDashboard />} />
           <Route path="/therapist" element={<TherapistDashboard />} />
+          <Route path="/therapist/dashboard" element={<TherapistDashboard />} />
           <Route path="/therapist/patients" element={<TherapistPatientsPage />} />
+          <Route path="/therapist/patients/:id" element={<TherapistPatientProfilePage />} />
           <Route path="/therapist/appointments" element={<TherapistAppointmentsPage />} />
+          <Route path="/therapist/schedule" element={<TherapistSchedulePage />} />
           <Route path="/therapist/questionnaires" element={<TherapistQuestionnairesPage />} />
           <Route path="/therapist/slots" element={<TherapistSlotManagement />} />
           <Route path="/therapist/ai-analysis" element={<TherapistDashboard />} />
@@ -108,6 +123,8 @@ function App() {
           <Route path="/therapist/session-notes" element={<TherapistDashboard />} />
           <Route path="/therapist/notifications" element={<TherapistDashboard />} />
           <Route path="/therapist/settings" element={<TherapistDashboard />} />
+          <Route path="/therapist/gaze-sessions" element={<GazeDashboard />} />
+          <Route path="/therapist/speech-therapy" element={<SpeechTherapyDashboard />} />
           <Route path="/research" element={<ResearchDashboard />} />
           <Route path="/research/users" element={<ResearchUsersPage />} />
           <Route path="/research/screenings" element={<ResearchDashboard />} />
@@ -128,7 +145,11 @@ function App() {
           <Route path="/teacher/students/:studentId" element={<StudentProfilePage />} />
           <Route path="/teacher/students/:studentId/social-game" element={<SocialResponseGame />} />
           <Route path="/teacher/screenings" element={<TeacherScreeningsPage />} />
+          <Route path="/teacher/assessments" element={<TeacherBehavioralAssessmentsPage />} />
+          <Route path="/teacher/assessments/:toolId" element={<TeacherBehavioralAssessmentDetailPage />} />
+          <Route path="/teacher/assessments/analysis/:studentId" element={<BehavioralAnalysisReportPage />} />
           <Route path="/teacher/reports" element={<TeacherReportsPage />} />
+          <Route path="/teacher/speech-therapy" element={<SpeechTherapyDashboard />} />
           <Route path="/teacher/insights" element={<TeacherDashboard />} />
           <Route path="/teacher/feedback" element={<TeacherDashboard />} />
           <Route path="/teacher/settings" element={<TeacherDashboard />} />
@@ -138,7 +159,6 @@ function App() {
           <Route path="*" element={<h1 className="text-center mt-20 text-2xl">404 - Page Not Found</h1>} />
         </Routes>
       </Router>
-    </GoogleOAuthProvider>
   );
 }
 

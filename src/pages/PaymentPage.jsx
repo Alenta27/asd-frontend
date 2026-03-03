@@ -20,102 +20,49 @@ const PaymentPage = () => {
     }
   }, [paymentData, navigate]);
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => {
-        resolve(true);
-      };
-      script.onerror = () => {
-        resolve(false);
-      };
-      document.body.appendChild(script);
-    });
-  };
-
   const handlePayment = async () => {
     try {
       setPaymentProcessing(true);
       setError(null);
 
-      // Load Razorpay script
-      const isScriptLoaded = await loadRazorpayScript();
-      if (!isScriptLoaded) {
-        throw new Error('Failed to load Razorpay. Please check your internet connection.');
-      }
+      // Simulate network delay
+      setTimeout(async () => {
+        try {
+          // Verify payment on backend with dummy success
+          const token = localStorage.getItem('token');
+          const verifyResponse = await fetch('http://localhost:5000/api/parent/verify-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              appointmentId: paymentData.appointmentId,
+              dummy_success: true
+            })
+          });
 
-      const options = {
-        key: paymentData.keyId,
-        amount: paymentData.amount * 100, // Amount in paise
-        currency: 'INR',
-        order_id: paymentData.orderId,
-        name: 'ASD Therapy Appointment',
-        description: `Appointment with ${paymentData.therapistName} for ${paymentData.childName}`,
-        image: '/logo.svg',
-        handler: async (response) => {
-          try {
-            console.log('Payment response:', response);
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            console.log('Payment verified (Dummy):', verifyData);
+            setPaymentSuccess(true);
             
-            // Verify payment on backend
-            const token = localStorage.getItem('token');
-            const verifyResponse = await fetch('http://localhost:5000/api/parent/verify-payment', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                appointmentId: paymentData.appointmentId,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature
-              })
-            });
-
-            if (verifyResponse.ok) {
-              const verifyData = await verifyResponse.json();
-              console.log('Payment verified:', verifyData);
-              setPaymentSuccess(true);
-              
-              // Redirect to appointments page after 2 seconds
-              setTimeout(() => {
-                navigate('/parent/appointments', { 
-                  state: { successMessage: 'Appointment booked successfully!' }
-                });
-              }, 2000);
-            } else {
-              const errorData = await verifyResponse.json();
-              throw new Error(errorData.message || 'Payment verification failed');
-            }
-          } catch (err) {
-            console.error('Payment verification error:', err);
-            setError('Payment verified but failed to confirm appointment: ' + err.message);
+            // Redirect to appointments page after 2 seconds
+            setTimeout(() => {
+              navigate('/parent/appointments', { 
+                state: { successMessage: 'Appointment booked successfully!' }
+              });
+            }, 2000);
+          } else {
+            const errorData = await verifyResponse.json();
+            throw new Error(errorData.message || 'Payment verification failed');
           }
-        },
-        prefill: {
-          email: paymentData.parentEmail || '',
-          contact: paymentData.parentPhone || ''
-        },
-        theme: {
-          color: '#3B82F6'
-        },
-        modal: {
-          ondismiss: () => {
-            setPaymentProcessing(false);
-            setError('Payment cancelled by user');
-          }
+        } catch (err) {
+          console.error('Payment verification error:', err);
+          setError('Payment simulation failed: ' + err.message);
+          setPaymentProcessing(false);
         }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', (response) => {
-        console.error('Payment failed:', response);
-        setPaymentProcessing(false);
-        setError(`Payment failed: ${response.error.description}`);
-      });
-
-      rzp.open();
+      }, 2000);
     } catch (err) {
       console.error('Error in payment process:', err);
       setPaymentProcessing(false);
@@ -228,14 +175,14 @@ const PaymentPage = () => {
               Processing...
             </>
           ) : (
-            `Pay ₹${paymentData.amount} with Razorpay`
+            `Pay ₹${paymentData.amount}`
           )}
         </button>
 
         {/* Payment Info */}
         <div className="payment-info">
-          <p>🔒 Your payment is secure and encrypted</p>
-          <p>Powered by Razorpay</p>
+          <p>🔒 This is a simulated payment for demo purposes</p>
+          <p>Cortexa Secure Payment</p>
         </div>
       </div>
 

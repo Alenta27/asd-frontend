@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { sanitizeUserObject } from '../utils/subscriptionUtils';
 
 const SelectRolePage = () => {
     const [role, setRole] = useState('parent');
@@ -33,6 +34,7 @@ const SelectRolePage = () => {
                 if (idField && res.data.user[idField]) {
                     localStorage.setItem(idField, res.data.user[idField]);
                 }
+                localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
             }
 
             // Now, we can decode the new token and redirect to the correct dashboard

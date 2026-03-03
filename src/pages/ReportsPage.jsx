@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 // Placeholder data; replace with API results
 const mockReports = [
-  { id: 'r1', childId: 'demo-1', childName: 'Alex', date: '2025-05-10', summary: 'ASD screening indicates moderate concerns. Recommend professional assessment.' },
+  { id: 'r1', childId: 'demo-1', childName: 'Alex', date: '2025-05-10', summary: 'ASD screening indicates Medium risk concerns. Recommend professional assessment.' },
   { id: 'r2', childId: 'demo-2', childName: 'Bella', date: '2025-05-20', summary: 'ADHD checklist suggests monitoring and teacher feedback.' },
 ];
 
