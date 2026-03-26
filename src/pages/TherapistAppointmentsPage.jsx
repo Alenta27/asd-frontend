@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiHome, FiUsers, FiFileText, FiSettings, FiLogOut, FiCalendar, FiHelpCircle, FiX, FiChevronDown } from 'react-icons/fi';
+import { FiHome, FiUsers, FiFileText, FiSettings, FiLogOut, FiCalendar, FiHelpCircle, FiX, FiChevronDown, FiMessageSquare } from 'react-icons/fi';
 import '../styles/TherapistAppointments.css';
 
 const TherapistAppointmentsPage = () => {
@@ -201,6 +201,10 @@ const TherapistAppointmentsPage = () => {
           <button onClick={() => handleNavClick('/therapist/appointments')} className="nav-item active">
             <FiCalendar className="nav-icon" />
             <span>My Appointments</span>
+          </button>
+          <button onClick={() => handleNavClick('/therapist/query-sessions')} className="nav-item">
+            <FiMessageSquare className="nav-icon" />
+            <span>Query Sessions</span>
           </button>
           <button onClick={() => handleNavClick('/therapist/slots')} className="nav-item">
             <FiCalendar className="nav-icon" />

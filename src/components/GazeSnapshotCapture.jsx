@@ -44,6 +44,14 @@ const GazeSnapshotCapture = () => {
     email: ''
   });
   
+  // FORCE GUEST MODE if patientId is missing, even if token exists
+  useEffect(() => {
+    if (!patientId) {
+      setIsGuest(true);
+      console.log('ℹ️ No patientId provided, defaulting to Guest Mode');
+    }
+  }, [patientId]);
+  
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [guestSuccessMessage, setGuestSuccessMessage] = useState('');
@@ -229,8 +237,11 @@ const GazeSnapshotCapture = () => {
       return;
     }
 
+    // Guest mode if NO patientId (even if token exists)
+    const activeIsGuest = !patientId;
+
     // For guest mode, ensure form is filled
-    if (!token && (!guestInfo.childName || !guestInfo.parentName || !guestInfo.email)) {
+    if (activeIsGuest && (!guestInfo.childName || !guestInfo.parentName || !guestInfo.email)) {
       setShowGuestForm(true);
       return;
     }
@@ -241,7 +252,8 @@ const GazeSnapshotCapture = () => {
     
     try {
       // Guest mode: Use dedicated unauthenticated endpoint
-      if (!token) {
+      if (activeIsGuest) {
+        console.log('📤 Submitting as Guest (no patientId provided)');
         const response = await fetch(`${apiBaseUrl}/api/guest/live-gaze/submit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

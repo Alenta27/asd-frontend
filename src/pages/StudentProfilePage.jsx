@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FaArrowLeft, FaChartLine, FaFileAlt, FaUser, FaPhone, FaEnvelope, FaEdit, FaGamepad, FaTimes } from 'react-icons/fa';
 import GameResultsDisplay from '../components/GameResultsDisplay';
 import SimilarCasesModal from '../components/SimilarCasesModal';
+import TeacherAudioCapture from '../components/TeacherAudioCapture';
 
 const clampDateToRange = (value) => {
   const start = '2025-08-01';
@@ -328,6 +329,8 @@ const StudentProfilePage = () => {
         {/* Summary Tab */}
         {activeTab === 'summary' && (
           <div className="space-y-6">
+            <TeacherAudioCapture studentId={studentId} />
+
             {/* Latest Screening Widget */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Latest Screening</h2>

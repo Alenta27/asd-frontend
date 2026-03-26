@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { PlayCircle, Mic, Square, Upload, AlertCircle, CheckCircle, Volume2, Star, Award, Trophy, Info, LineChart, Lock, Zap, User as UserIcon, Loader2 } from 'lucide-react';
+import { PlayCircle, Mic, Square, Upload, AlertCircle, CheckCircle, Volume2, Star, Award, Trophy, Info, LineChart, Lock, Zap, User as UserIcon, Loader2, LogOut } from 'lucide-react';
 import { LineChart as ReLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import SubscriptionModal from '../components/SubscriptionModal';
 import ParentRegistrationModal from '../components/ParentRegistrationModal';
 import AddChildModal from '../components/AddChildModal';
+import { decodeToken } from '../utils/tokenUtils';
 
 /**
  * SPEECH THERAPY REDESIGN - CORE ARCHITECTURE
@@ -55,6 +56,77 @@ import AddChildModal from '../components/AddChildModal';
  */
 
 export default function SpeechTherapyChildPage() {
+  const LEGACY_SPEECH_KEYS = ['selectedChildId', 'parentId', 'speech_parent', 'speech_parent_id', 'speechParentId'];
+
+  const getSpeechSessionKey = (userKey) => `speech_session_${userKey}`;
+
+  const getActiveUser = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return null;
+    }
+
+    let storedUser = null;
+    try {
+      storedUser = JSON.parse(localStorage.getItem('user') || 'null');
+    } catch (e) {
+      storedUser = null;
+    }
+
+    const decoded = decodeToken(token);
+    const userKey =
+      storedUser?.parentId ||
+      storedUser?.therapistId ||
+      storedUser?.teacherId ||
+      storedUser?.researcherId ||
+      storedUser?.adminId ||
+      storedUser?._id ||
+      decoded?.id ||
+      decoded?.email;
+
+    if (!userKey) {
+      return null;
+    }
+
+    const fallbackName = decoded?.email ? decoded.email.split('@')[0] : 'Parent';
+
+    return {
+      id: String(userKey),
+      name: storedUser?.username || storedUser?.parentName || storedUser?.name || fallbackName,
+      role: storedUser?.role || decoded?.role || 'parent'
+    };
+  };
+
+  const clearLegacySpeechStorage = () => {
+    LEGACY_SPEECH_KEYS.forEach((key) => localStorage.removeItem(key));
+  };
+
+  const clearAllSpeechSessions = () => {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('speech_session_'))
+      .forEach((key) => localStorage.removeItem(key));
+  };
+
+  const readUserSpeechSession = (userKey) => {
+    try {
+      const raw = localStorage.getItem(getSpeechSessionKey(userKey));
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const writeUserSpeechSession = (userKey, partialData) => {
+    if (!userKey) return;
+    const current = readUserSpeechSession(userKey) || {};
+    const next = {
+      ...current,
+      ...partialData,
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem(getSpeechSessionKey(userKey), JSON.stringify(next));
+  };
+
   // ============================================================
   // STATE MANAGEMENT
   // ============================================================
@@ -64,6 +136,7 @@ export default function SpeechTherapyChildPage() {
   const [children, setChildren] = useState([]);
   const [parentId, setParentId] = useState(''); // NEVER use localStorage as source of truth
   const [parentInfo, setParentInfo] = useState(null);
+  const [activeUser, setActiveUser] = useState(null);
   
   // Subscription State (Reset on reload - backend is source of truth)
   // CRITICAL: Default is NONE - Pro badge will ONLY show after backend confirms ACTIVE
@@ -104,6 +177,9 @@ export default function SpeechTherapyChildPage() {
   const [showAddChildModal, setShowAddChildModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   
+  // Intended action state (to resume flow after registration/payment)
+  const [intendedLanguage, setIntendedLanguage] = useState(null);
+  
   // App Initialization State
   const [isAppInitialized, setIsAppInitialized] = useState(false);
   
@@ -117,6 +193,23 @@ export default function SpeechTherapyChildPage() {
   const subscriptionTimeoutRef = useRef(null);
 
   const sessionLimit = 5;
+
+  const resetSpeechStateForGuest = () => {
+    setSelectedChild('');
+    setChildren([]);
+    setParentId('');
+    setParentInfo(null);
+    setProgressData([]);
+    setDailySessionCount(0);
+    setChildSubscription({
+      status: 'NONE',
+      expiry: null,
+      isVerifying: false,
+      lastChecked: null
+    });
+    setSelectedLanguage('en-US');
+    setIntendedLanguage(null);
+  };
 
   // ============================================================
   // LANGUAGE CONFIGURATIONS
@@ -235,12 +328,15 @@ export default function SpeechTherapyChildPage() {
    */
   const isEnglish = selectedLanguage === 'en-US';
   const isPremiumLanguage = !isEnglish;
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
   // CRITICAL: Pro badge requires backend confirmation AND child selection
   const hasActiveSubscription = (
     selectedChild && 
     !childSubscription.isVerifying && 
     childSubscription.status === 'ACTIVE'
   );
+  
   const canAccessCurrentLanguage = isEnglish || hasActiveSubscription;
   
   // Debug logging for subscription access
@@ -296,17 +392,35 @@ export default function SpeechTherapyChildPage() {
     });
     console.log('✅ [CLEANUP] Complete - No cached subscription data');
     
-    // STEP 1: Check localStorage for saved IDs
-    const savedChildId = localStorage.getItem('selectedChildId');
-    const savedParentId = localStorage.getItem('parentId');
-    const storedParentData = localStorage.getItem('speech_parent');
+    // STEP 1: Resolve active logged-in user
+    const currentUser = getActiveUser();
+    setActiveUser(currentUser);
+
+    // STEP 2: Guest mode -> always reset all session state
+    if (!currentUser) {
+      console.log('ℹ️ No logged in user found. Running in Guest Mode.');
+      clearLegacySpeechStorage();
+      clearAllSpeechSessions();
+      resetSpeechStateForGuest();
+      setIsAppInitialized(true);
+      return;
+    }
+
+    // STEP 3: Logged in user -> load only that user's speech session
+    const savedSession = readUserSpeechSession(currentUser.id);
+    const savedChildId = savedSession?.selectedChildId || '';
+    const savedParentId = savedSession?.parentId || '';
+    const storedParentData = savedSession?.parentInfo || null;
+
+    // Clear legacy global keys so old users do not bleed across logins
+    clearLegacySpeechStorage();
     
     console.log('📦 [LOCALSTORAGE CHECK]:');
     console.log('  └─ selectedChildId:', savedChildId || 'NOT FOUND');
     console.log('  └─ parentId:', savedParentId || 'NOT FOUND');
     console.log('  └─ speech_parent:', storedParentData ? 'FOUND' : 'NOT FOUND');
     
-    // STEP 2: Restore child selection from localStorage
+    // STEP 4: Restore child selection from user-scoped storage
     // WHY: User shouldn't have to re-select after refresh
     if (savedChildId) {
       console.log('📌 Restoring selected child:', savedChildId);
@@ -317,28 +431,22 @@ export default function SpeechTherapyChildPage() {
       console.log('ℹ️  No saved child found - starting fresh');
     }
     
-    // STEP 3: Check if parent is registered (from localStorage)
+    // STEP 5: Restore parent profile from user-scoped storage
     // WHY: Parent registration is persistent (doesn't expire)
     if (savedParentId) {
       console.log('📌 Restoring parent:', savedParentId);
       setParentId(savedParentId);
       fetchChildren(savedParentId);
       
-      // Also restore parent info if available
       if (storedParentData) {
-        try {
-          const parentData = JSON.parse(storedParentData);
-          setParentInfo(parentData);
-          console.log('✅ Parent info restored:', parentData.parentName);
-        } catch (e) {
-          console.error('❌ Failed to parse parent data:', e);
-        }
+        setParentInfo(storedParentData);
+        console.log('✅ Parent info restored:', storedParentData.parentName);
       }
     } else {
       console.log('ℹ️  No saved parent found - starting fresh');
     }
     
-    // STEP 4: Mark app as initialized
+    // STEP 6: Mark app as initialized
     setIsAppInitialized(true);
     
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -363,6 +471,10 @@ export default function SpeechTherapyChildPage() {
    * 5. NO localStorage caching - backend is single source of truth
    */
   useEffect(() => {
+    if (!activeUser?.id) {
+      return;
+    }
+
     if (!selectedChild) {
       // No child selected - reset to NONE
       setChildSubscription({
@@ -371,15 +483,15 @@ export default function SpeechTherapyChildPage() {
         isVerifying: false,
         lastChecked: null
       });
-      // Clear from localStorage
-      localStorage.removeItem('selectedChildId');
+      // Update user-scoped session state
+      writeUserSpeechSession(activeUser.id, { selectedChildId: '' });
       return;
     }
     
-    // Save ONLY childId to localStorage for persistence across refreshes
+    // Save ONLY childId to user-scoped storage for persistence
     // DO NOT save subscription status
-    localStorage.setItem('selectedChildId', selectedChild);
-    console.log('💾 Saved selected child to localStorage:', selectedChild);
+    writeUserSpeechSession(activeUser.id, { selectedChildId: selectedChild });
+    console.log('💾 Saved selected child to user session:', selectedChild);
     
     // Verify subscription from backend
     verifyChildSubscription(selectedChild);
@@ -390,7 +502,7 @@ export default function SpeechTherapyChildPage() {
         clearTimeout(subscriptionTimeoutRef.current);
       }
     };
-  }, [selectedChild]);
+  }, [selectedChild, activeUser]);
 
   /**
    * WHY: Fetches subscription status from backend with timeout protection
@@ -452,10 +564,8 @@ export default function SpeechTherapyChildPage() {
       // DO NOT cache subscription status in localStorage
       // Backend is the ONLY source of truth
       
-      // Fetch progress data
-      if (status === 'ACTIVE') {
-        fetchProgress(childId);
-      }
+      // Fetch progress data for this child regardless of subscription status
+      fetchProgress(childId);
       
     } catch (error) {
       console.error('❌ Subscription verification failed:', error);
@@ -491,21 +601,24 @@ export default function SpeechTherapyChildPage() {
   const handleLanguageChange = (languageCode) => {
     const selectedLang = languages.find(l => l.code === languageCode);
     
-    // RULE: English is ALWAYS FREE - no checks needed
+    // RULE: English is ALWAYS FREE
     if (selectedLang.isFree) {
       console.log('🆓 Switching to English (FREE)');
       setSelectedLanguage(languageCode);
+      setIntendedLanguage(null); // Clear any pending intent
       return;
     }
     
     // RULE: Premium languages require full flow
     console.log(`🔒 Attempting to access premium language: ${selectedLang.name}`);
-    console.log('Current subscription status:', childSubscription);
+    
+    // CRITICAL FIX: DO NOT update selectedLanguage yet!
+    // Store it in intendedLanguage so we can resume after payment
+    setIntendedLanguage(languageCode);
     
     // Step 1: Check Parent
     if (!parentId) {
       console.log('❌ No parent - showing registration modal');
-      alert('Premium languages require registration. Please create a parent profile.');
       setShowParentRegModal(true);
       return;
     }
@@ -513,7 +626,6 @@ export default function SpeechTherapyChildPage() {
     // Step 2: Check Child
     if (!selectedChild) {
       console.log('❌ No child selected - showing child modal');
-      alert('Please select or add a child to access premium languages.');
       setShowAddChildModal(true);
       return;
     }
@@ -521,30 +633,20 @@ export default function SpeechTherapyChildPage() {
     // Step 2.5: Handle verification in progress
     if (childSubscription.isVerifying) {
       console.log('⏳ Subscription verification in progress, please wait...');
-      alert('Checking your subscription status. Please wait a moment and try again.');
       return;
     }
     
-    // Step 3: Check Subscription (with detailed logging)
+    // Step 3: Check Subscription
     if (childSubscription.status !== 'ACTIVE') {
-      console.log('❌ No active subscription');
-      console.log('Subscription status:', childSubscription.status);
-      console.log('Subscription expiry:', childSubscription.expiry);
-      
-      // Check if subscription just expired
-      if (childSubscription.status === 'EXPIRED') {
-        alert(`Your subscription has expired. Please renew to access ${selectedLang.name}.`);
-      } else {
-        alert(`${selectedLang.name} requires a PRO subscription. Upgrade to access premium languages.`);
-      }
+      console.log('❌ No active subscription - showing payment modal');
       setShowSubscriptionModal(true);
       return;
     }
     
     // All checks passed - allow access
     console.log(`✅ Access granted to ${selectedLang.name}`);
-    console.log('Subscription expiry:', childSubscription.expiry);
     setSelectedLanguage(languageCode);
+    setIntendedLanguage(null);
   };
 
   // ============================================================
@@ -603,15 +705,26 @@ export default function SpeechTherapyChildPage() {
     setParentId(data.parentId);
     setParentInfo(data.parent);
     
-    // Store ONLY parentId and parent info (not subscription status)
-    localStorage.setItem('parentId', data.parentId);
-    localStorage.setItem('speech_parent', JSON.stringify(data.parent));
-    // Keep legacy keys for compatibility
-    localStorage.setItem('speech_parent_id', data.parentId);
+    // Store parent profile in user-scoped speech session (not subscription status)
+    if (activeUser?.id) {
+      writeUserSpeechSession(activeUser.id, {
+        parentId: data.parentId,
+        parentInfo: data.parent,
+        selectedChildId: selectedChild
+      });
+    }
+
+    // Keep this key for payment modal compatibility
     localStorage.setItem('speechParentId', data.parentId);
     
     setShowParentRegModal(false);
     fetchChildren(data.parentId);
+
+    // Proactively show add child modal since a new parent won't have children
+    // and they need a child profile to access premium features or track progress
+    setTimeout(() => {
+      setShowAddChildModal(true);
+    }, 600);
   };
 
   const handleChildSelect = (e) => {
@@ -633,6 +746,18 @@ export default function SpeechTherapyChildPage() {
     setChildren([...children, newChild]);
     setSelectedChild(newChild._id);
     setShowAddChildModal(false);
+
+    if (activeUser?.id) {
+      writeUserSpeechSession(activeUser.id, { selectedChildId: newChild._id });
+    }
+
+    // If the user was trying to select a premium language, now show the subscription modal
+    if (intendedLanguage && childSubscription.status !== 'ACTIVE') {
+      console.log('🔄 Child added - now showing subscription modal for premium access');
+      setTimeout(() => {
+        setShowSubscriptionModal(true);
+      }, 600);
+    }
   };
 
   const handleUpgrade = async (verificationResult) => {
@@ -651,10 +776,25 @@ export default function SpeechTherapyChildPage() {
       await verifyChildSubscription(selectedChild);
       
       // Show success message with instructions
-      alert(`🎉 Premium features unlocked!\n\nYou can now select Malayalam or Hindi from the language selector above.`);
+      alert(`🎉 Premium features unlocked!\n\nYou can now access your selected language.`);
+      
+      if (intendedLanguage) {
+        setSelectedLanguage(intendedLanguage);
+        setIntendedLanguage(null);
+      }
     } else {
       console.warn('No child selected after payment');
     }
+  };
+
+  const handleSessionLogout = () => {
+    const authKeys = ['token', 'user', 'parentId', 'therapistId', 'teacherId', 'researcherId', 'adminId', 'speechParentId', 'speech_parent', 'speech_parent_id'];
+    authKeys.forEach((key) => localStorage.removeItem(key));
+    clearLegacySpeechStorage();
+    clearAllSpeechSessions();
+    sessionStorage.clear();
+    setActiveUser(null);
+    resetSpeechStateForGuest();
   };
 
   // ============================================================
@@ -1217,6 +1357,29 @@ export default function SpeechTherapyChildPage() {
             
             {/* Subscription Status Badge */}
             <div className="mt-4 flex justify-center gap-2 flex-wrap">
+              {!activeUser ? (
+                <span className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm border border-gray-200">
+                  <UserIcon size={12} />
+                  Guest Mode
+                </span>
+              ) : (
+                <span className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm border border-blue-100">
+                  <CheckCircle size={12} />
+                  Parent: {activeUser.name}
+                </span>
+              )}
+
+              {activeUser && (
+                <button
+                  onClick={handleSessionLogout}
+                  className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm border border-red-200 transition-all"
+                  title="Logout"
+                >
+                  <LogOut size={12} />
+                  Logout
+                </button>
+              )}
+
               {hasActiveSubscription && selectedChild ? (
                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
                   <Star size={12} fill="currentColor" />

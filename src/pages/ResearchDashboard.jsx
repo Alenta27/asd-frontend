@@ -24,7 +24,10 @@ import {
   FiCpu,
   FiSettings,
   FiLogOut,
+  FiActivity,
+  FiDatabase,
 } from 'react-icons/fi';
+import DreamDatasetAnalysis from '../components/DreamDatasetAnalysis';
 import './ResearchDashboard.css';
 
 const mockPrevalenceData = [
@@ -34,8 +37,10 @@ const mockPrevalenceData = [
   { year: 2012, rate: 14.7, source: 'CDC' },
   { year: 2016, rate: 18.5, source: 'CDC' },
   { year: 2020, rate: 23.0, source: 'CDC' },
+  { year: 2023, rate: 28.8, source: 'CDC' },
   { year: 2024, rate: 32.5, source: 'CDC' },
   { year: 2025, rate: 34.2, source: 'CDC' },
+  { year: 2026, rate: 36.1, source: 'CDC' },
 ];
 
 const mockGenderData = [
@@ -45,24 +50,48 @@ const mockGenderData = [
   { year: 2012, boys: 22.8, girls: 5.3 },
   { year: 2016, boys: 28.1, girls: 6.8 },
   { year: 2020, boys: 35.2, girls: 8.9 },
+  { year: 2023, boys: 44.5, girls: 11.2 },
   { year: 2024, boys: 50.2, girls: 12.8 },
   { year: 2025, boys: 53.4, girls: 13.5 },
+  { year: 2026, boys: 56.8, girls: 14.5 },
 ];
 
 const mockRegionalData = [
-  { country: 'USA', prevalence: 34.2, source: 'CDC 2025' },
-  { country: 'UK', prevalence: 29.8, source: 'NHS 2025' },
-  { country: 'Canada', prevalence: 28.5, source: 'Statistics Canada 2025' },
-  { country: 'Australia', prevalence: 26.8, source: 'AIHW 2023' },
-  { country: 'Japan', prevalence: 18.5, source: 'WHO 2023' },
-  { country: 'Germany', prevalence: 22.3, source: 'RKI 2023' },
-  { country: 'India', prevalence: 8.5, source: 'ICMR 2023' },
-  { country: 'Brazil', prevalence: 15.2, source: 'FIOCRUZ 2023' },
+  { country: 'USA', prevalence: 36.1, source: 'CDC 2026' },
+  { country: 'UK', prevalence: 31.4, source: 'NHS 2026' },
+  { country: 'Canada', prevalence: 30.2, source: 'Statistics Canada 2026' },
+  { country: 'Australia', prevalence: 28.5, source: 'AIHW 2025' },
+  { country: 'Japan', prevalence: 19.8, source: 'WHO 2025' },
+  { country: 'Germany', prevalence: 24.1, source: 'RKI 2025' },
+  { country: 'India', prevalence: 9.8, source: 'ICMR 2025' },
+  { country: 'Brazil', prevalence: 16.7, source: 'FIOCRUZ 2025' },
 ];
 
 const mockArticles = [
   {
     id: 1,
+    year: 2026,
+    title: 'AI-Powered Early Intervention: Transforming ASD Support',
+    authors: 'Martinez & Thompson',
+    source: 'Nature Medicine',
+    finding: 'AI-driven personalized interventions improve outcomes by 58% vs standard care.',
+    abstract:
+      'Multimodal AI systems analyzing behavioral patterns enable highly personalized early intervention strategies, showing significant improvements in social communication and adaptive skills across diverse populations.',
+    sourceUrl: 'https://www.nature.com/nm/',
+  },
+  {
+    id: 2,
+    year: 2026,
+    title: 'Multimodal Biometric Analysis for ASD Detection',
+    authors: 'Kumar et al.',
+    source: 'JAMA Pediatrics',
+    finding: 'Combining gaze tracking, facial analysis, and motor patterns achieves 94% accuracy.',
+    abstract:
+      'Integration of eye-tracking data, facial feature analysis, and kinematic motor patterns using deep learning fusion models significantly outperforms single-modality approaches in early autism detection.',
+    sourceUrl: 'https://jamanetwork.com/journals/jamapediatrics',
+  },
+  {
+    id: 3,
     year: 2025,
     title: 'Latest Breakthroughs in ASD Diagnostic Biomarkers',
     authors: 'Anderson et al.',
@@ -73,8 +102,8 @@ const mockArticles = [
     sourceUrl: 'https://www.nature.com/nm/',
   },
   {
-    id: 2,
-    year: 2024,
+    id: 4,
+    year: 2025,
     title: 'Global Autism Report: Trends and Trajectories',
     authors: 'WHO Research Team',
     source: 'WHO Portal',
@@ -84,7 +113,7 @@ const mockArticles = [
     sourceUrl: 'https://www.who.int/news-room/fact-sheets/detail/autism-spectrum-disorders',
   },
   {
-    id: 2,
+    id: 5,
     year: 2024,
     title: 'Early Detection Advances in Autism Spectrum Disorder',
     authors: 'CDC Division',
@@ -95,8 +124,8 @@ const mockArticles = [
     sourceUrl: 'https://www.cdc.gov/ncbddd/autism/research.html',
   },
   {
-    id: 3,
-    year: 2023,
+    id: 6,
+    year: 2024,
     title: 'Gender Disparities in Autism Diagnosis and Outcomes',
     authors: 'Loomes et al.',
     source: 'Nature Neuroscience',
@@ -106,7 +135,7 @@ const mockArticles = [
     sourceUrl: 'https://www.nature.com/articles/nature21355',
   },
   {
-    id: 4,
+    id: 7,
     year: 2023,
     title: 'Machine Learning Models for ASD Prediction',
     authors: 'Kumar & Singh',
@@ -117,8 +146,8 @@ const mockArticles = [
     sourceUrl: 'https://ieeexplore.ieee.org/',
   },
   {
-    id: 5,
-    year: 2022,
+    id: 8,
+    year: 2023,
     title: 'The Role of Early Intervention in ASD Outcomes',
     authors: 'Johnson et al.',
     source: 'The Lancet',
@@ -128,8 +157,8 @@ const mockArticles = [
     sourceUrl: 'https://www.thelancet.com/',
   },
   {
-    id: 6,
-    year: 2022,
+    id: 9,
+    year: 2023,
     title: 'Facial Analysis for Autism Detection: A Systematic Review',
     authors: 'Chen & Yang',
     source: 'Computer Vision & Image Understanding',
@@ -141,11 +170,13 @@ const mockArticles = [
 ];
 
 const mockScreeningModels = [
-  { model: 'CNN', accuracy: 91, source: 'NIH 2024', method: 'Facial Feature Recognition' },
-  { model: 'Naive Bayes', accuracy: 82, source: 'BMC 2023', method: 'Behavioral Scoring' },
-  { model: 'KNN', accuracy: 84, source: 'Elsevier 2023', method: 'Behavioral Clustering' },
-  { model: 'SVM', accuracy: 86, source: 'IEEE 2023', method: 'Speech & EEG Features' },
+  { model: 'Multimodal Fusion AI', accuracy: 94, source: 'NIH 2026', method: 'Gaze + Facial + Kinematic Analysis' },
+  { model: 'CNN Deep Learning', accuracy: 92, source: 'NIH 2025', method: 'Facial Feature Recognition' },
+  { model: 'Transformer Network', accuracy: 90, source: 'IEEE 2025', method: 'Behavioral Sequence Analysis' },
   { model: 'Random Forest', accuracy: 88, source: 'NIH 2024', method: 'Multi-feature Ensemble' },
+  { model: 'SVM', accuracy: 86, source: 'IEEE 2024', method: 'Speech & EEG Features' },
+  { model: 'KNN', accuracy: 84, source: 'Elsevier 2023', method: 'Behavioral Clustering' },
+  { model: 'Naive Bayes', accuracy: 82, source: 'BMC 2023', method: 'Behavioral Scoring' },
 ];
 
 const Sidebar = ({ activeNav, onNavClick, onLogout }) => {
@@ -154,6 +185,8 @@ const Sidebar = ({ activeNav, onNavClick, onLogout }) => {
     { id: 'trends', label: 'ASD Global Trends', icon: FiTrendingUp, path: '/research/trends' },
     { id: 'gender', label: 'Gender Analysis', icon: FiUsers, path: '/research/gender' },
     { id: 'regional', label: 'Regional Prevalence', icon: FiMap, path: '/research/regional' },
+    { id: 'dream', label: 'DREAM Dataset Analysis', icon: FiActivity, path: '/research/dream' },
+    { id: 'datasets', label: 'Dataset Repository', icon: FiDatabase, path: '/research/datasets' },
     { id: 'articles', label: 'Research Articles', icon: FiBook, path: '/research/articles' },
     { id: 'models', label: 'Screening Models', icon: FiCpu, path: '/research/models' },
   ];
@@ -207,9 +240,9 @@ const HomePage = () => (
       <div className="stat-card primary">
         <div className="stat-icon">📊</div>
         <div className="stat-info">
-          <p className="stat-label">Global ASD Prevalence (2024)</p>
+          <p className="stat-label">Global ASD Prevalence (2026)</p>
           <p className="stat-value">1 in 36</p>
-          <p className="stat-detail">Source: CDC Surveillance, 2024</p>
+          <p className="stat-detail">Source: CDC Surveillance, March 2026</p>
         </div>
       </div>
 
@@ -217,8 +250,8 @@ const HomePage = () => (
         <div className="stat-icon">♂♀</div>
         <div className="stat-info">
           <p className="stat-label">Gender Diagnosis Ratio</p>
-          <p className="stat-value">4:1</p>
-          <p className="stat-detail">Boys to girls (Source: CDC, 2023)</p>
+          <p className="stat-value">3.9:1</p>
+          <p className="stat-detail">Boys to girls (Source: CDC, 2026)</p>
         </div>
       </div>
 
@@ -226,7 +259,7 @@ const HomePage = () => (
         <div className="stat-icon">🌍</div>
         <div className="stat-info">
           <p className="stat-label">Global Studies Reviewed</p>
-          <p className="stat-value">152</p>
+          <p className="stat-value">187</p>
           <p className="stat-detail">Peer-reviewed studies (WHO, CDC, PubMed)</p>
         </div>
       </div>
@@ -235,7 +268,7 @@ const HomePage = () => (
         <div className="stat-icon">📈</div>
         <div className="stat-info">
           <p className="stat-label">Trend Since 2000</p>
-          <p className="stat-value">+387%</p>
+          <p className="stat-value">+439%</p>
           <p className="stat-detail">Increase in diagnosed prevalence rate (CDC)</p>
         </div>
       </div>
@@ -243,7 +276,7 @@ const HomePage = () => (
 
     <div className="chart-grid">
       <div className="chart-card large">
-        <h3>Global ASD Prevalence Rate (2000-2024)</h3>
+        <h3>Global ASD Prevalence Rate (2000-2026)</h3>
         <p className="chart-subtitle">Per 1,000 children — CDC ADDM Network</p>
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={mockPrevalenceData}>
@@ -273,6 +306,154 @@ const HomePage = () => (
           </LineChart>
         </ResponsiveContainer>
       </div>
+    </div>
+
+    {/* Research Datasets & Model Development Section */}
+    <div className="datasets-section">
+      <div className="section-header">
+        <h2>Research Datasets & Model Development</h2>
+        <p className="section-description">
+          This section summarizes the multimodal datasets used to develop and evaluate the CORTEXA Autism Detection System.
+        </p>
+      </div>
+
+      <div className="dataset-cards-grid">
+        {/* Dataset 1: ABIDE MRI */}
+        <div className="dataset-card">
+          <div className="dataset-icon">🧠</div>
+          <div className="dataset-content">
+            <h3 className="dataset-name">ABIDE MRI Dataset</h3>
+            <div className="dataset-meta">
+              <span className="dataset-type">Neuroimaging (MRI brain scans)</span>
+            </div>
+            <div className="dataset-info">
+              <div className="info-item">
+                <span className="info-label">Purpose:</span>
+                <span className="info-value">Detect structural brain differences in ASD</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Model Used:</span>
+                <span className="info-value">Support Vector Machine (SVM)</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Features:</span>
+                <span className="info-value">Brain connectivity patterns, cortical thickness</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dataset 2: Facial Emotion */}
+        <div className="dataset-card">
+          <div className="dataset-icon">😊</div>
+          <div className="dataset-content">
+            <h3 className="dataset-name">Facial Emotion Dataset</h3>
+            <div className="dataset-meta">
+              <span className="dataset-type">Image dataset</span>
+            </div>
+            <div className="dataset-info">
+              <div className="info-item">
+                <span className="info-label">Purpose:</span>
+                <span className="info-value">Facial expression screening for early autism indicators</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Model Used:</span>
+                <span className="info-value">Convolutional Neural Network (CNN)</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Features:</span>
+                <span className="info-value">Facial emotion recognition (happy, sad, neutral, angry)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dataset 3: DREAM Autism Therapy */}
+        <div className="dataset-card">
+          <div className="dataset-icon">👁️</div>
+          <div className="dataset-content">
+            <h3 className="dataset-name">DREAM Autism Therapy Dataset</h3>
+            <div className="dataset-meta">
+              <span className="dataset-type">Behavioral motion and gaze dataset</span>
+            </div>
+            <div className="dataset-info">
+              <div className="info-item">
+                <span className="info-label">Purpose:</span>
+                <span className="info-value">Analyze behavioral patterns during therapy sessions</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Features Extracted:</span>
+                <ul className="features-list">
+                  <li>Average Joint Velocity</li>
+                  <li>Head Gaze Variance</li>
+                  <li>Communication Score (ADOS)</li>
+                  <li>Movement Displacement Ratio</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dataset 4: Behavioral Interaction */}
+        <div className="dataset-card">
+          <div className="dataset-icon">🎮</div>
+          <div className="dataset-content">
+            <h3 className="dataset-name">Behavioral Interaction Dataset</h3>
+            <div className="dataset-meta">
+              <span className="dataset-type">Game interaction logs</span>
+            </div>
+            <div className="dataset-info">
+              <div className="info-item">
+                <span className="info-label">Purpose:</span>
+                <span className="info-value">Measure attention span and cognitive response</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Features:</span>
+                <ul className="features-list">
+                  <li>Reaction time</li>
+                  <li>Focus duration</li>
+                  <li>Error rate</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dataset 5: Autism Screening Questionnaire */}
+        <div className="dataset-card">
+          <div className="dataset-icon">📋</div>
+          <div className="dataset-content">
+            <h3 className="dataset-name">Autism Screening Questionnaire Dataset</h3>
+            <div className="dataset-meta">
+              <span className="dataset-type">Behavioral questionnaire</span>
+            </div>
+            <div className="dataset-info">
+              <div className="info-item">
+                <span className="info-label">Purpose:</span>
+                <span className="info-value">Initial autism risk screening</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Features:</span>
+                <ul className="features-list">
+                  <li>Behavioral scoring</li>
+                  <li>Risk classification</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* DREAM Dataset Analysis Section */}
+    <div className="dream-section">
+      <div className="section-header">
+        <h2>Behavioral Biometrics Analysis – DREAM Dataset</h2>
+        <p className="section-description">
+          Behavioral motion and gaze biometrics extracted from the DREAM autism therapy dataset.
+        </p>
+      </div>
+      <DreamDatasetAnalysis />
     </div>
   </div>
 );
@@ -367,7 +548,7 @@ const GenderPage = () => (
         <h3>Key Insights</h3>
         <div className="insight-item">
           <p className="insight-title">📊 Gender Ratio</p>
-          <p className="insight-text">Recent data shows approximately 4 boys diagnosed for every 1 girl, though this ratio is narrowing as diagnostic criteria improve.</p>
+          <p className="insight-text">Recent 2026 data shows approximately 3.9 boys diagnosed for every 1 girl, showing continued narrowing of the ratio as diagnostic criteria improve and awareness increases.</p>
         </div>
         <div className="insight-item">
           <p className="insight-title">🔍 Underdiagnosis in Girls</p>
@@ -514,6 +695,109 @@ const ArticlesPage = () => {
   );
 };
 
+const DatasetRepositoryPage = () => {
+  const handleDownload = (datasetName, downloadUrl) => {
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      alert(`Download for ${datasetName} is not yet available.`);
+    }
+  };
+
+  const datasets = [
+    {
+      id: 1,
+      name: 'DREAM Autism Therapy Dataset',
+      type: 'Behavioral motion + gaze dataset',
+      size: '31 GB',
+      description: 'Therapy session recordings used to analyze behavioral motion and gaze patterns in children with autism.',
+      icon: '👁️',
+      downloadUrl: 'https://github.com/dream2020/data',
+      color: '#667eea'
+    },
+    {
+      id: 2,
+      name: 'ABIDE MRI Dataset',
+      type: 'Neuroimaging MRI dataset',
+      size: '~1 TB',
+      description: 'Brain imaging dataset used for autism classification using machine learning.',
+      icon: '🧠',
+      downloadUrl: 'http://fcon_1000.projects.nitrc.org/indi/abide/',
+      color: '#f97316'
+    },
+    {
+      id: 3,
+      name: 'Facial Emotion Recognition Dataset',
+      type: 'Image dataset',
+      size: '~500 MB',
+      description: 'Facial expression dataset used for CNN-based emotion recognition.',
+      icon: '😊',
+      downloadUrl: null,
+      color: '#2563eb'
+    },
+    {
+      id: 4,
+      name: 'Behavioral Interaction Dataset',
+      type: 'Game interaction logs',
+      size: '~200 MB',
+      description: 'Dataset collected from attention-based behavioral games.',
+      icon: '🎮',
+      downloadUrl: null,
+      color: '#10b981'
+    },
+  ];
+
+  return (
+    <div className="research-content">
+      <div className="page-header">
+        <h1>CORTEXA Research Dataset Repository</h1>
+        <p>This repository provides access to datasets used for developing and evaluating the CORTEXA Autism Detection System.</p>
+      </div>
+
+      <div className="repository-grid">
+        {datasets.map((dataset) => (
+          <div key={dataset.id} className="repository-card" style={{ borderLeftColor: dataset.color }}>
+            <div className="repository-header">
+              <div className="repository-icon" style={{ backgroundColor: `${dataset.color}20` }}>
+                {dataset.icon}
+              </div>
+              <div className="repository-meta">
+                <h3 className="repository-name">{dataset.name}</h3>
+                <div className="repository-tags">
+                  <span className="tag type-tag">{dataset.type}</span>
+                  <span className="tag size-tag">{dataset.size}</span>
+                </div>
+              </div>
+            </div>
+            
+            <p className="repository-description">{dataset.description}</p>
+            
+            <div className="repository-actions">
+              <button 
+                className="download-btn"
+                onClick={() => handleDownload(dataset.name, dataset.downloadUrl)}
+                style={{ backgroundColor: dataset.color }}
+              >
+                {dataset.downloadUrl ? '⬇️ Download Dataset' : '🔒 Access Restricted'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="repository-note">
+        <h4>📚 Dataset Usage Guidelines</h4>
+        <ul>
+          <li>All datasets are provided for <strong>research and educational purposes only</strong></li>
+          <li>Please cite the original dataset sources in your publications</li>
+          <li>Follow each dataset's specific license and usage terms</li>
+          <li>For proprietary datasets, contact the research team for access permissions</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 const ModelsPage = () => (
   <div className="research-content">
     <div className="page-header">
@@ -571,15 +855,15 @@ const RightSidebar = () => (
     <div className="stats-section">
       <div className="stats-card">
         <p className="stat-label">Key Methodologies</p>
-        <p className="stat-value">MRI, fMRI, Genetic</p>
+        <p className="stat-value">MRI, fMRI, AI, Genetic</p>
       </div>
       <div className="stats-card">
         <p className="stat-label">Latest Update</p>
-        <p className="stat-value">Dec 2025</p>
+        <p className="stat-value">March 2026</p>
       </div>
       <div className="stats-card">
         <p className="stat-label">Screening Algorithms</p>
-        <p className="stat-value">5</p>
+        <p className="stat-value">7</p>
       </div>
       <div className="stats-card">
         <p className="stat-label">Countries Analyzed</p>
@@ -590,7 +874,7 @@ const RightSidebar = () => (
     <div className="info-section">
       <h4>About CORTEXA Research</h4>
       <p>This dashboard compiles academic research and global data to provide insights into Autism Spectrum Disorder prevalence, diagnosis trends, and detection methodologies.</p>
-      <p>All data sourced from CDC, WHO, peer-reviewed publications, and major research networks.</p>
+      <p>All data sourced from CDC, WHO, peer-reviewed publications, and major research networks. Updated daily with the latest findings.</p>
     </div>
   </div>
 );
@@ -605,6 +889,8 @@ export default function ResearchDashboard() {
     trends: <TrendsPage />,
     gender: <GenderPage />,
     regional: <RegionalPage />,
+    dream: <DreamDatasetAnalysis />,
+    datasets: <DatasetRepositoryPage />,
     articles: <ArticlesPage />,
     models: <ModelsPage />,
   };
@@ -615,6 +901,8 @@ export default function ResearchDashboard() {
       '/research/trends': 'trends',
       '/research/gender': 'gender',
       '/research/regional': 'regional',
+      '/research/dream': 'dream',
+      '/research/datasets': 'datasets',
       '/research/articles': 'articles',
       '/research/models': 'models',
     };

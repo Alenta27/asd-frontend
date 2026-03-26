@@ -72,14 +72,15 @@
 .step-card {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 24px;
-  padding: 3rem 2rem;
+  padding: 3rem 2rem 3rem;
+  padding-top: 2.5rem;
   text-align: center;
   position: relative;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  margin-top: 28px;
 }
 
 .step-card::before {
@@ -100,11 +101,11 @@
 
 .step-number {
   position: absolute;
-  top: -15px;
+  top: -24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   background: var(--step-color);
   color: white;
   border-radius: 50%;
@@ -113,7 +114,9 @@
   justify-content: center;
   font-weight: 700;
   font-size: 1.2rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 .step-icon {

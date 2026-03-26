@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
 import { FiHome, FiUsers, FiFileText, FiSettings, FiLogOut, FiCalendar, FiClock, FiActivity, FiArrowLeft, FiMonitor, FiVideo } from 'react-icons/fi';
 import { FaEye, FaSave } from 'react-icons/fa';
@@ -187,17 +188,33 @@ const GazeDashboard = () => {
         body: JSON.stringify({ notes: observations[snapshotId] })
       });
       if (response.ok) {
-        alert("Notes saved successfully");
+        Swal.fire({
+          title: 'Success!',
+          text: 'Notes saved successfully',
+          icon: 'success',
+          confirmButtonColor: '#4f46e5'
+        });
       }
     } catch (err) {
       console.error("Failed to save notes:", err);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to save notes',
+        icon: 'error',
+        confirmButtonColor: '#4f46e5'
+      });
     }
   };
 
   const handleCreateReport = async (title) => {
     try {
       if (!selectedSession.patientId?._id && !selectedSession.isGuest) {
-        alert("Cannot create report: Patient ID missing.");
+        Swal.fire({
+          title: 'Error!',
+          text: 'Cannot create report: Patient ID missing.',
+          icon: 'error',
+          confirmButtonColor: '#4f46e5'
+        });
         return;
       }
 
@@ -217,20 +234,40 @@ const GazeDashboard = () => {
       });
 
       if (response.ok) {
-        alert("Report created successfully");
+        Swal.fire({
+          title: 'Success!',
+          text: 'Report created successfully',
+          icon: 'success',
+          confirmButtonColor: '#4f46e5'
+        });
       } else {
         const data = await response.json();
-        alert(`Failed to create report: ${data.message || 'Unknown error'}`);
+        Swal.fire({
+          title: 'Failed!',
+          text: `Failed to create report: ${data.message || 'Unknown error'}`,
+          icon: 'error',
+          confirmButtonColor: '#4f46e5'
+        });
       }
     } catch (err) {
       console.error("Failed to create report:", err);
-      alert("Error creating report");
+      Swal.fire({
+        title: 'Error!',
+        text: 'Error creating report',
+        icon: 'error',
+        confirmButtonColor: '#4f46e5'
+      });
     }
   };
 
   const handleConvertToPatient = async () => {
     if (!selectedSession || !selectedSession.isGuest) {
-      alert("This is not a guest session");
+      Swal.fire({
+        title: 'Info',
+        text: 'This is not a guest session',
+        icon: 'info',
+        confirmButtonColor: '#4f46e5'
+      });
       return;
     }
 
@@ -238,28 +275,68 @@ const GazeDashboard = () => {
     const parentName = selectedSession.guestInfo?.parentName || '';
     const email = selectedSession.guestInfo?.email || '';
 
-    const patientName = prompt("Enter patient name:", childName) || childName;
-    if (!patientName) return;
+    const { value: formValues } = await Swal.fire({
+      title: 'Convert Guest to Patient',
+      html:
+        `<div style="text-align: left;">` +
+        `<label style="display: block; margin-bottom: 5px; font-size: 14px;">Patient Name</label>` +
+        `<input id="swal-input1" class="swal2-input" placeholder="Name" value="${childName}" style="margin-top: 0; width: 80%;">` +
+        `<label style="display: block; margin-top: 15px; margin-bottom: 5px; font-size: 14px;">Age</label>` +
+        `<input id="swal-input2" class="swal2-input" placeholder="Age" value="5" type="number" style="margin-top: 0; width: 80%;">` +
+        `<label style="display: block; margin-top: 15px; margin-bottom: 5px; font-size: 14px;">Gender</label>` +
+        `<select id="swal-input3" class="swal2-input" style="margin-top: 0; width: 80%;">` +
+        `<option value="Male">Male</option>` +
+        `<option value="Female">Female</option>` +
+        `<option value="Other">Other</option>` +
+        `</select>` +
+        `<label style="display: block; margin-top: 15px; margin-bottom: 5px; font-size: 14px;">Parent Email</label>` +
+        `<input id="swal-input5" class="swal2-input" placeholder="parent@example.com" value="${email}" type="email" style="margin-top: 0; width: 80%;">` +
+        `<label style="display: block; margin-top: 15px; margin-bottom: 5px; font-size: 14px;">Medical History / Notes</label>` +
+        `<textarea id="swal-input4" class="swal2-textarea" placeholder="Optional notes..." style="width: 80%;"></textarea>` +
+        `</div>`,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Convert Now',
+      confirmButtonColor: '#8b5cf6',
+      preConfirm: () => {
+        const name = document.getElementById('swal-input1').value;
+        const age = document.getElementById('swal-input2').value;
+        const gender = document.getElementById('swal-input3').value;
+        const emailInput = document.getElementById('swal-input5').value;
+        const notes = document.getElementById('swal-input4').value;
+        
+        if (!name || !age) {
+          Swal.showValidationMessage('Name and Age are required');
+          return false;
+        }
 
-    const patientAge = prompt("Enter patient age:", "5");
-    if (!patientAge) return;
+        if (!emailInput || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)) {
+          Swal.showValidationMessage('Valid parent email is required for conversion');
+          return false;
+        }
 
-    const patientGender = prompt("Enter patient gender (Male/Female/Other):", "");
-    if (!patientGender) return;
+        return { name, age, gender, notes, parentEmail: emailInput.trim().toLowerCase() };
+      }
+    });
 
-    const additionalInfo = prompt("Medical history or notes (optional):", "");
+    if (!formValues) return;
 
-    const confirmed = window.confirm(
-      `Convert guest session to patient?\n\n` +
-      `Patient Name: ${patientName}\n` +
-      `Age: ${patientAge}\n` +
-      `Gender: ${patientGender}\n` +
-      `Parent: ${parentName}\n` +
-      `Email: ${email}\n\n` +
-      `This will assign the patient to you and link all past guest sessions.`
-    );
+    const confirmed = await Swal.fire({
+      title: 'Confirm Conversion',
+      html: `Convert guest session to patient?<br><br>` +
+            `<b>Patient:</b> ${formValues.name}<br>` +
+            `<b>Age:</b> ${formValues.age}<br>` +
+            `<b>Parent:</b> ${parentName}<br>` +
+            `<b>Email:</b> ${formValues.parentEmail}<br>` +
+            `This will link all past guest sessions and assign the patient to you.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, convert',
+      confirmButtonColor: '#8b5cf6',
+      cancelButtonColor: '#6b7280'
+    });
 
-    if (!confirmed) return;
+    if (!confirmed.isConfirmed) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -271,32 +348,45 @@ const GazeDashboard = () => {
         },
         body: JSON.stringify({
           guestSessionId: selectedSession._id,
-          patientName,
-          patientAge: parseInt(patientAge),
-          patientGender,
-          additionalInfo
+          patientName: formValues.name,
+          patientAge: parseInt(formValues.age),
+          patientGender: formValues.gender,
+          additionalInfo: formValues.notes,
+          parentEmail: formValues.parentEmail
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        alert(
-          `✅ Successfully converted to patient!\n\n` +
-          `Patient: ${data.patient.name}\n` +
-          `Linked Sessions: ${data.linkedSessions}\n\n` +
-          `The patient is now assigned to you.`
-        );
+        Swal.fire({
+          title: 'Success!',
+          html: `✅ Successfully converted to patient!<br><br>` +
+                `<b>Patient:</b> ${data.patient.name}<br>` +
+                `<b>Linked Sessions:</b> ${data.linkedSessions}`,
+          icon: 'success',
+          confirmButtonColor: '#4f46e5'
+        });
         
         // Refresh sessions
         fetchActiveSessions();
         setSelectedSession(null);
       } else {
         const data = await response.json();
-        alert(`Failed to convert: ${data.message || 'Unknown error'}`);
+        Swal.fire({
+          title: 'Failed!',
+          text: `Failed to convert: ${data.message || 'Unknown error'}${data.error ? ' (' + data.error + ')' : ''}`,
+          icon: 'error',
+          confirmButtonColor: '#4f46e5'
+        });
       }
     } catch (err) {
       console.error("Failed to convert guest to patient:", err);
-      alert("Error converting guest to patient");
+      Swal.fire({
+        title: 'Error!',
+        text: 'Error converting guest to patient',
+        icon: 'error',
+        confirmButtonColor: '#4f46e5'
+      });
     }
   };
 
@@ -570,9 +660,20 @@ const GazeDashboard = () => {
                         </button>
                       )}
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const name = selectedSession.isGuest ? selectedSession.guestInfo?.childName : selectedSession.patientId?.name;
-                          const title = prompt("Enter Report Title:", `Gaze Analysis Report - ${name}`);
+                          const { value: title } = await Swal.fire({
+                            title: 'Enter Report Title',
+                            input: 'text',
+                            inputValue: `Gaze Analysis Report - ${name}`,
+                            showCancelButton: true,
+                            confirmButtonColor: '#10b981',
+                            inputValidator: (value) => {
+                              if (!value) {
+                                return 'You need to write something!'
+                              }
+                            }
+                          });
                           if (title) handleCreateReport(title);
                         }}
                         style={{ 

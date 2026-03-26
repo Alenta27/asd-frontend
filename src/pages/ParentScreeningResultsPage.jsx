@@ -1,178 +1,158 @@
-import React, { useState } from 'react';
-import { FaArrowLeft, FaCamera, FaClipboardList, FaChartLine, FaDownload } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FaArrowLeft, FaCalendarAlt, FaClipboardCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 
 const ParentScreeningResultsPage = () => {
   const navigate = useNavigate();
-  const [step1Complete, setStep1Complete] = useState(false);
-  const [step2Complete, setStep2Complete] = useState(false);
-  const [pastReports] = useState([
-    { id: 1, date: '25 Oct 2025', type: 'Combined Screening Report' },
-    { id: 2, date: '18 Oct 2025', type: 'Facial & Eye-Tracking Screening' },
-  ]);
+  const [searchParams] = useSearchParams();
 
-  const handleStartScreening = () => {
-    setStep1Complete(true);
-    navigate('/screening-tools');
+  const childId = searchParams.get('childId');
+
+  const [results, setResults] = useState([]);
+  const [childName, setChildName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!childId) {
+        setError('No child selected. Please return to dashboard and choose a child.');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const token = localStorage.getItem('token');
+
+        const [childrenResponse, historyResponse] = await Promise.all([
+          axios.get('http://localhost:5000/api/parent/children', {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`http://localhost:5000/api/screening/results/${childId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        const children = Array.isArray(childrenResponse.data) ? childrenResponse.data : [];
+        const selectedChild = children.find((c) => (c._id || c.id) === childId);
+        setChildName(selectedChild?.name || 'Selected Child');
+
+        const history = Array.isArray(historyResponse.data) ? historyResponse.data : [];
+        setResults(history);
+      } catch (err) {
+        console.error('Error loading screening history:', err);
+        setError(err?.response?.data?.error || 'Failed to load screening history.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadHistory();
+  }, [childId]);
+
+  const stats = useMemo(() => {
+    const total = results.length;
+    const high = results.filter((r) => (r.resultLabel || '').includes('High')).length;
+    const moderate = results.filter((r) => {
+      const label = r.resultLabel || '';
+      return label.includes('Moderate') || label.includes('Medium');
+    }).length;
+    const low = results.filter((r) => (r.resultLabel || '').includes('Low')).length;
+    return { total, high, moderate, low };
+  }, [results]);
+
+  const getRiskBadgeClasses = (label) => {
+    if (!label) return 'bg-gray-100 text-gray-700';
+    if (label.includes('High')) return 'bg-red-100 text-red-700';
+    if (label.includes('Moderate') || label.includes('Medium')) return 'bg-orange-100 text-orange-700';
+    return 'bg-green-100 text-green-700';
   };
-
-  const handleBeginQuestionnaire = () => {
-    setStep2Complete(true);
-    navigate('/screening-tools');
-  };
-
-  const canAnalyze = step1Complete && step2Complete;
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-64 bg-blue-200 shadow-lg flex flex-col overflow-hidden">
-        <div className="p-6 border-b border-blue-300 flex items-center gap-2">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="text-blue-600 hover:text-blue-800 transition"
-          >
-            <FaArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-blue-800">CORTEXA</h1>
-            <p className="text-xs text-blue-600">ASD Detection & Support</p>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-5xl mx-auto">
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center text-gray-600 hover:text-blue-600 mb-6 transition"
+        >
+          <FaArrowLeft className="mr-2" /> Back to Dashboard
+        </button>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 shadow-sm p-8">
-          <h1 className="text-3xl font-bold text-gray-800">New Screening Center</h1>
-          <p className="text-gray-600 text-sm mt-2">
-            To generate a new preliminary report for your child, please complete the two sections below. This analysis provides supportive insights and is not a formal diagnosis.
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6 border-l-4 border-blue-500">
+          <h1 className="text-2xl font-bold text-gray-800">Screening History</h1>
+          <p className="text-gray-600 mt-1">
+            Previous autism screening tests for <span className="font-semibold">{childName || 'selected child'}</span>
           </p>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-8">
-          <div className="space-y-8 max-w-4xl">
-            {/* Step 1: Facial & Eye-Tracking */}
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-400">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-400 text-white rounded-full flex items-center justify-center font-bold">1</div>
-                    <h2 className="text-2xl font-bold text-gray-800">Facial & Eye-Tracking Screening</h2>
-                  </div>
-                  
-                  <div className="flex items-start gap-3 mb-4">
-                    <FaCamera size={20} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-gray-700 font-semibold">Camera-Based Analysis</p>
-                      <p className="text-gray-600 text-sm mt-1">
-                        This tool will use your device's camera to present short videos and stimuli. It analyzes observational data related to facial expressions and eye-tracking patterns. Please ensure your child is in a quiet, well-lit area.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 mb-4">
-                    <span className="font-semibold">Status:</span> {step1Complete ? '✓ Complete' : 'Not Started'}
-                  </div>
-                </div>
-                <button
-                  onClick={handleStartScreening}
-                  className="px-4 py-2 bg-pink-200 text-pink-800 rounded-lg hover:bg-pink-300 transition font-semibold text-sm whitespace-nowrap ml-4"
-                >
-                  {step1Complete ? '✓ Started' : 'Start Screening'}
-                </button>
+        {isLoading ? (
+          <div className="bg-white rounded-xl shadow-md p-6 text-gray-600">Loading screening history...</div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 flex items-start gap-3">
+            <FaExclamationTriangle className="mt-1" />
+            <div>{error}</div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-xs text-gray-500 uppercase font-semibold">Total Tests</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{stats.total}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-red-100">
+                <p className="text-xs text-red-500 uppercase font-semibold">High Risk</p>
+                <p className="text-2xl font-bold text-red-700 mt-1">{stats.high}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-orange-100">
+                <p className="text-xs text-orange-500 uppercase font-semibold">Moderate Risk</p>
+                <p className="text-2xl font-bold text-orange-700 mt-1">{stats.moderate}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-green-100">
+                <p className="text-xs text-green-500 uppercase font-semibold">Low Risk</p>
+                <p className="text-2xl font-bold text-green-700 mt-1">{stats.low}</p>
               </div>
             </div>
 
-            {/* Step 2: Parent Questionnaire */}
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-400">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-400 text-white rounded-full flex items-center justify-center font-bold">2</div>
-                    <h2 className="text-2xl font-bold text-gray-800">Parent Observational Questionnaire</h2>
-                  </div>
-                  
-                  <div className="flex items-start gap-3 mb-4">
-                    <FaClipboardList size={20} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-gray-700 font-semibold">M-CHAT-R™ Based Questions</p>
-                      <p className="text-gray-600 text-sm mt-1">
-                        This is a standardized questionnaire (based on the M-CHAT-R™) about your child's behaviors. Please answer based on your observations over the past few weeks.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 mb-4">
-                    <span className="font-semibold">Status:</span> {step2Complete ? '✓ Complete' : 'Not Started'}
-                  </div>
-                </div>
-                <button
-                  onClick={handleBeginQuestionnaire}
-                  className="px-4 py-2 bg-pink-200 text-pink-800 rounded-lg hover:bg-pink-300 transition font-semibold text-sm whitespace-nowrap ml-4"
-                >
-                  {step2Complete ? '✓ Started' : 'Begin Questionnaire'}
-                </button>
-              </div>
-            </div>
-
-            {/* Step 3: Analyze & Generate Report */}
-            <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-400">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-blue-400 text-white rounded-full flex items-center justify-center font-bold">3</div>
-                    <h2 className="text-2xl font-bold text-gray-800">Analyze & Generate Report</h2>
-                  </div>
-                  
-                  <div className="flex items-start gap-3 mb-4">
-                    <FaChartLine size={20} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-gray-600 text-sm">
-                      Once both screening sections are complete, our system will analyze the combined data and generate a comprehensive report with insights and recommendations.
-                    </p>
-                  </div>
-
-                  <div className="px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                    <span className="font-semibold">Status:</span> {canAnalyze ? 'Ready to Analyze' : 'Complete Steps 1 & 2 to proceed'}
-                  </div>
-                </div>
-                <button
-                  disabled={!canAnalyze}
-                  onClick={() => navigate('/screening-report')}
-                  className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap ml-4 transition ${
-                    canAnalyze
-                      ? 'bg-pink-200 text-pink-800 hover:bg-pink-300'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  Analyze & View Report
-                </button>
-              </div>
-            </div>
-
-            {/* Past Reports */}
-            {pastReports.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Past Reports</h2>
+            <div className="bg-white rounded-xl shadow-md p-6">
+              {results.length === 0 ? (
+                <div className="text-gray-600">No screening history found yet for this child.</div>
+              ) : (
                 <div className="space-y-3">
-                  {pastReports.map((report) => (
-                    <div key={report.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition border border-gray-200">
+                  {results.map((item) => (
+                    <div
+                      key={item._id || item.screeningId}
+                      className="p-4 rounded-lg border border-gray-100 bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                    >
                       <div>
-                        <p className="font-semibold text-gray-800">{report.type}</p>
-                        <p className="text-xs text-gray-600 mt-1">{report.date}</p>
+                        <div className="flex items-center gap-2">
+                          <FaClipboardCheck className="text-blue-600" />
+                          <p className="font-bold text-gray-800">{item.screeningType || 'Questionnaire'}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                          <FaCalendarAlt />
+                          <span>
+                            {item.createdAt ? new Date(item.createdAt).toLocaleString() : 'Date unavailable'}
+                          </span>
+                        </div>
                       </div>
-                      <button className="px-4 py-2 bg-pink-200 text-pink-800 rounded-lg hover:bg-pink-300 transition font-semibold text-sm flex items-center gap-2">
-                        <FaDownload size={14} /> View PDF
-                      </button>
+
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${getRiskBadgeClasses(item.resultLabel)}`}>
+                          {item.resultLabel || 'N/A'}
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          Score: <span className="font-semibold">{typeof item.resultScore === 'number' ? item.resultScore.toFixed(3) : 'N/A'}</span>
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

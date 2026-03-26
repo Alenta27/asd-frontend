@@ -1,7 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { FiHome, FiUsers, FiFileText, FiSettings, FiLogOut, FiCalendar, FiHelpCircle, FiPlus, FiSearch, FiX } from 'react-icons/fi';
 import '../styles/TherapistAppointments.css';
+
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+
+const parseJsonResponse = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const getApiMessage = (payload, fallbackMessage) => (
+  payload?.message || payload?.error || payload?.details || fallbackMessage
+);
+
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const TherapistPatientsPage = () => {
   const navigate = useNavigate();
@@ -26,8 +43,73 @@ const TherapistPatientsPage = () => {
     parentEmail: ''
   });
 
+  const resetPatientForm = () => {
+    setFormData({
+      patientName: '',
+      patientAge: '',
+      patientGender: '',
+      medicalHistory: '',
+      parentName: '',
+      parentEmail: ''
+    });
+  };
+
+  const resetGuestSearchState = () => {
+    setGuestSessions([]);
+    setGuestSearchEmail('');
+    setSelectedGuestEmail(null);
+  };
+
+  const validatePatientForm = () => {
+    const patientName = formData.patientName.trim();
+    const patientGender = formData.patientGender.trim();
+    const parentEmail = formData.parentEmail.trim().toLowerCase();
+    const patientAge = Number.parseInt(formData.patientAge, 10);
+
+    if (!patientName || !formData.patientAge || !patientGender || !parentEmail) {
+      return 'Please fill in all required fields: Patient Name, Age, Gender, and Parent Email.';
+    }
+
+    if (!Number.isInteger(patientAge) || patientAge <= 0) {
+      return 'Please enter a valid patient age greater than 0.';
+    }
+
+    if (!isValidEmail(parentEmail)) {
+      return 'Please enter a valid parent email address.';
+    }
+
+    return null;
+  };
+
+  const fetchPatients = async (token) => {
+    const response = await fetch(`${API_BASE_URL}/api/patients`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const payload = await parseJsonResponse(response);
+
+    if (!response.ok) {
+      console.error('Patients fetch failed:', {
+        status: response.status,
+        payload,
+      });
+      throw new Error(getApiMessage(payload, `Failed to fetch patients (${response.status})`));
+    }
+
+    const nextPatients = Array.isArray(payload?.patients)
+      ? payload.patients
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+    setPatients(nextPatients);
+  };
+
   useEffect(() => {
-    const fetchPatients = async () => {
+    const loadPageData = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -41,22 +123,14 @@ const TherapistPatientsPage = () => {
         };
 
         // Fetch profile
-        const profileRes = await fetch('http://localhost:5000/api/therapist/profile', { headers });
+        const profileRes = await fetch(`${API_BASE_URL}/api/therapist/profile`, { headers });
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setUsername(profileData.username || profileData.email?.split('@')[0] || '');
         }
 
         // Fetch patients/clients
-        const patientsRes = await fetch('http://localhost:5000/api/therapist/clients', { headers });
-        if (patientsRes.ok) {
-          const patientsData = await patientsRes.json();
-          console.log('Patients fetched:', patientsData);
-          setPatients(Array.isArray(patientsData) ? patientsData : []);
-        } else {
-          console.error('Patients fetch failed:', patientsRes.status);
-          setError(`Failed to fetch patients: ${patientsRes.status}`);
-        }
+        await fetchPatients(token);
       } catch (error) {
         console.error('Error fetching data:', error);
         setError(error.message);
@@ -65,7 +139,7 @@ const TherapistPatientsPage = () => {
       }
     };
 
-    fetchPatients();
+    loadPageData();
   }, [navigate]);
 
   const handleLogout = () => {
@@ -78,101 +152,175 @@ const TherapistPatientsPage = () => {
   };
 
   const handleSearchGuestSessions = async () => {
-    if (!guestSearchEmail) {
-      alert('Please enter an email address');
+    const normalizedGuestSearchEmail = guestSearchEmail.trim().toLowerCase();
+
+    if (!normalizedGuestSearchEmail) {
+      Swal.fire({
+        title: 'Info',
+        text: 'Please enter an email address',
+        icon: 'info',
+        confirmButtonColor: '#4f46e5'
+      });
+      return;
+    }
+
+    if (!isValidEmail(normalizedGuestSearchEmail)) {
+      Swal.fire({
+        title: 'Validation Error',
+        text: 'Please enter a valid email address.',
+        icon: 'warning',
+        confirmButtonColor: '#4f46e5'
+      });
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/therapist/search-guest-sessions?email=${encodeURIComponent(guestSearchEmail)}`,
+        `${API_BASE_URL}/api/therapist/search-guest-sessions?email=${encodeURIComponent(normalizedGuestSearchEmail)}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }
       );
 
+      const data = await parseJsonResponse(response);
+
       if (response.ok) {
-        const data = await response.json();
-        setGuestSessions(data.sessions);
-        if (data.sessions.length === 0) {
-          alert('No guest sessions found for this email');
+        const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+        setGuestSessions(sessions);
+        if (sessions.length === 0) {
+          setSelectedGuestEmail(null);
+          Swal.fire({
+            title: 'No Results',
+            text: 'No guest sessions found for this email',
+            icon: 'info',
+            confirmButtonColor: '#4f46e5'
+          });
         } else {
-          setSelectedGuestEmail(guestSearchEmail);
+          setSelectedGuestEmail(normalizedGuestSearchEmail);
         }
       } else {
-        alert('Failed to search guest sessions');
+        console.error('Guest session search failed:', {
+          status: response.status,
+          payload: data,
+        });
+        Swal.fire({
+          title: 'Error',
+          text: getApiMessage(data, 'Failed to search guest sessions'),
+          icon: 'error',
+          confirmButtonColor: '#4f46e5'
+        });
       }
     } catch (err) {
       console.error('Error searching guest sessions:', err);
-      alert('Error searching guest sessions');
+      Swal.fire({
+        title: 'Error',
+        text: err.message || 'Error searching guest sessions',
+        icon: 'error',
+        confirmButtonColor: '#4f46e5'
+      });
     }
   };
 
   const handleAddPatient = async (linkToGuestEmail = null) => {
-    const { patientName, patientAge, patientGender, parentEmail } = formData;
+    const validationMessage = validatePatientForm();
 
-    if (!patientName || !patientAge || !patientGender || !parentEmail) {
-      alert('Please fill in all required fields: Patient Name, Age, Gender, and Parent Email');
+    if (validationMessage) {
+      Swal.fire({
+        title: 'Validation Error',
+        text: validationMessage,
+        icon: 'warning',
+        confirmButtonColor: '#4f46e5'
+      });
       return;
     }
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/therapist/add-patient', {
+      const requestBody = {
+        patientName: formData.patientName.trim(),
+        patientAge: Number.parseInt(formData.patientAge, 10),
+        patientGender: formData.patientGender.trim(),
+        medicalHistory: formData.medicalHistory.trim(),
+        parentName: formData.parentName.trim(),
+        parentEmail: formData.parentEmail.trim().toLowerCase(),
+      };
+
+      if (linkToGuestEmail) {
+        requestBody.linkToGuestEmail = linkToGuestEmail;
+      }
+
+      let response = await fetch(`${API_BASE_URL}/api/patients`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          patientName,
-          patientAge: parseInt(patientAge),
-          patientGender,
-          medicalHistory: formData.medicalHistory,
-          parentName: formData.parentName,
-          parentEmail,
-          linkToGuestEmail
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      // Backward compatibility: some running backend instances still expose only the therapist endpoint.
+      if (response.status === 404) {
+        response = await fetch(`${API_BASE_URL}/api/therapist/add-patient`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+      }
+
+      const data = await parseJsonResponse(response);
+
       if (response.ok) {
-        const data = await response.json();
-        alert(
-          `✅ Patient added successfully!\n\n` +
-          `Patient: ${data.patient.name}\n` +
-          `Age: ${data.patient.age}\n` +
-          `Gender: ${data.patient.gender}\n` +
-          (data.linkedSessions ? `\nLinked ${data.linkedSessions} guest sessions` : '')
-        );
+        Swal.fire({
+          title: 'Success!',
+          html: `✅ Patient added successfully!<br><br>` +
+                `<b>Patient:</b> ${data.patient.name}<br>` +
+                `<b>Age:</b> ${data.patient.age}<br>` +
+                `<b>Gender:</b> ${data.patient.gender}` +
+                (data.linkedSessions ? `<br><br>Linked ${data.linkedSessions} guest sessions` : ''),
+          icon: 'success',
+          confirmButtonColor: '#4f46e5'
+        });
         
         // Reset form and close modal
-        setFormData({
-          patientName: '',
-          patientAge: '',
-          patientGender: '',
-          medicalHistory: '',
-          parentName: '',
-          parentEmail: ''
-        });
+        resetPatientForm();
         setShowAddPatientModal(false);
         setShowGuestSearchModal(false);
+        resetGuestSearchState();
         
         // Refresh patients list
-        const patientsRes = await fetch('http://localhost:5000/api/therapist/clients', { 
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (patientsRes.ok) {
-          const patientsData = await patientsRes.json();
-          setPatients(Array.isArray(patientsData) ? patientsData : []);
-        }
+        await fetchPatients(token);
       } else {
-        const data = await response.json();
-        alert(`Failed to add patient: ${data.message || 'Unknown error'}`);
+        console.error('Failed to add patient:', {
+          status: response.status,
+          payload: data,
+          requestBody,
+        });
+
+        const modalTitle = response.status === 409
+          ? 'Duplicate Email'
+          : response.status === 400
+            ? 'Validation Error'
+            : 'Unable to Add Patient';
+
+        Swal.fire({
+          title: modalTitle,
+          text: getApiMessage(data, 'Failed to add patient'),
+          icon: 'error',
+          confirmButtonColor: '#4f46e5'
+        });
       }
     } catch (err) {
       console.error('Error adding patient:', err);
-      alert('Error adding patient');
+      Swal.fire({
+        title: 'Error',
+        text: err.message || 'Error adding patient',
+        icon: 'error',
+        confirmButtonColor: '#4f46e5'
+      });
     }
   };
 
@@ -513,7 +661,7 @@ const TherapistPatientsPage = () => {
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                 <button
-                  onClick={() => handleAddPatient()}
+                  onClick={() => handleAddPatient(selectedGuestEmail)}
                   style={{
                     flex: 1,
                     padding: '12px',
@@ -578,9 +726,7 @@ const TherapistPatientsPage = () => {
               <button
                 onClick={() => {
                   setShowGuestSearchModal(false);
-                  setGuestSessions([]);
-                  setGuestSearchEmail('');
-                  setSelectedGuestEmail(null);
+                  resetGuestSearchState();
                 }}
                 style={{
                   background: 'none',

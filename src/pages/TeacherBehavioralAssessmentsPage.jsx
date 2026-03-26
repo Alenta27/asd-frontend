@@ -123,6 +123,25 @@ const TeacherBehavioralAssessmentsPage = () => {
     trend: 0
   });
 
+  const getAuthToken = () => {
+    const rawToken = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!rawToken || rawToken === 'null' || rawToken === 'undefined') return null;
+
+    // Handle accidentally stringified values like '"<jwt>"'
+    if (rawToken.startsWith('"') && rawToken.endsWith('"')) {
+      return rawToken.slice(1, -1);
+    }
+
+    return rawToken;
+  };
+
+  const handleUnauthorized = (message = 'Your session has expired. Please sign in again.') => {
+    alert(message);
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
+    navigate('/login');
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchStats();
@@ -130,10 +149,21 @@ const TeacherBehavioralAssessmentsPage = () => {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/behavioral/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (response.status === 401) {
+        handleUnauthorized('Session expired while loading stats. Please sign in again.');
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         setStats(data);
@@ -145,10 +175,21 @@ const TeacherBehavioralAssessmentsPage = () => {
 
   const fetchStudents = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
+      if (!token) {
+        handleUnauthorized();
+        return;
+      }
+
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/teacher/students`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (response.status === 401) {
+        handleUnauthorized('Session expired while loading students. Please sign in again.');
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         setStudents(data);
@@ -190,7 +231,12 @@ const TeacherBehavioralAssessmentsPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
+      if (!token) {
+        handleUnauthorized('Session expired before saving results. Please sign in again.');
+        return;
+      }
+
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/behavioral/submit`, {
         method: 'POST',
         headers: {
@@ -199,6 +245,11 @@ const TeacherBehavioralAssessmentsPage = () => {
         },
         body: JSON.stringify(assessmentData)
       });
+
+      if (response.status === 401) {
+        handleUnauthorized('Session expired while saving assessment. Please sign in again and retry.');
+        return;
+      }
 
       if (response.ok) {
         const savedData = await response.json();

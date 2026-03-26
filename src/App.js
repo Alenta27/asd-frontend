@@ -35,6 +35,7 @@ import TherapistQuestionnairesPage from './pages/TherapistQuestionnairesPage';
 import TherapistSlotManagement from './pages/TherapistSlotManagement';
 import TherapistAppointmentsPage from './pages/TherapistAppointmentsPage';
 import TherapistSchedulePage from './pages/TherapistSchedulePage';
+import TherapistMessageSessionsPage from './pages/TherapistMessageSessionsPage';
 import ResearchUsersPage from './pages/ResearchUsersPage';
 import ResearchDatasetPage from './pages/ResearchDatasetPage';
 import LearnMorePage from './pages/LearnMorePage';
@@ -51,11 +52,17 @@ import ParentAppointmentsPage from './pages/ParentAppointmentsPage';
 import SocialResponseGame from './pages/SocialResponseGame';
 import ParentScreeningResultsPage from './pages/ParentScreeningResultsPage';
 import ParentProgressReportsPage from './pages/ParentProgressReportsPage';
+import AttentionAnalysisPage from './pages/AttentionAnalysisPage';
 import ParentCareTeamPage from './pages/ParentCareTeamPage';
 import ParentResourcesPage from './pages/ParentResourcesPage';
 import ParentSettingsPage from './pages/ParentSettingsPage';
+import AutismScreeningPage from './pages/AutismScreeningPage';
 import PaymentPage from './pages/PaymentPage';
+import FacialScreeningPage from './pages/FacialScreeningPage';
+import ScreeningCenterPage from './pages/ScreeningCenterPage';
 import { cleanupExpiredSubscription } from './utils/subscriptionUtils';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
   useEffect(() => {
@@ -79,6 +86,8 @@ function App() {
           <Route path="/speech-therapy" element={<SpeechTherapyChildPage />} />
           <Route path="/mri-screening" element={<MRIScreeningPage />} />
           <Route path="/live-gaze-analysis" element={<GazeSnapshotCapture />} />
+          <Route path="/facial-screening" element={<ScreeningPage />} />
+          <Route path="/screening-center" element={<ScreeningCenterPage />} />
           <Route path="/questionnaire" element={<QuestionnairePage />} />
           <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/learn-more" element={<LearnMorePage />} />
@@ -96,6 +105,11 @@ function App() {
           <Route path="/parent/payment" element={<PaymentPage />} />
           <Route path="/parent/screening-results" element={<ParentScreeningResultsPage />} />
           <Route path="/parent/progress-reports" element={<ParentProgressReportsPage />} />
+          <Route path="/parent/attention-analysis" element={<AttentionAnalysisPage />} />
+          <Route path="/parent/attention-analysis/play" element={<AttentionAnalysisPage />} />
+          <Route path="/parent/attention-analysis/result" element={<AttentionAnalysisPage />} />
+          <Route path="/parent/attention-analysis/results" element={<AttentionAnalysisPage />} />
+          <Route path="/parent/autism-screening" element={<AutismScreeningPage />} />
           <Route path="/parent/care-team" element={<ParentCareTeamPage />} />
           <Route path="/parent/resources" element={<ParentResourcesPage />} />
           <Route path="/parent/settings" element={<ParentSettingsPage />} />
@@ -115,6 +129,7 @@ function App() {
           <Route path="/therapist/patients" element={<TherapistPatientsPage />} />
           <Route path="/therapist/patients/:id" element={<TherapistPatientProfilePage />} />
           <Route path="/therapist/appointments" element={<TherapistAppointmentsPage />} />
+          <Route path="/therapist/query-sessions" element={<TherapistMessageSessionsPage />} />
           <Route path="/therapist/schedule" element={<TherapistSchedulePage />} />
           <Route path="/therapist/questionnaires" element={<TherapistQuestionnairesPage />} />
           <Route path="/therapist/slots" element={<TherapistSlotManagement />} />
@@ -136,6 +151,8 @@ function App() {
           <Route path="/research/trends" element={<ResearchDashboard />} />
           <Route path="/research/gender" element={<ResearchDashboard />} />
           <Route path="/research/regional" element={<ResearchDashboard />} />
+          <Route path="/research/dream" element={<ResearchDashboard />} />
+          <Route path="/research/datasets" element={<ResearchDashboard />} />
           <Route path="/research/articles" element={<ResearchDashboard />} />
           <Route path="/research/models" element={<ResearchDashboard />} />
           <Route path="/research/model-performance" element={<ResearchDashboard />} />
@@ -158,6 +175,7 @@ function App() {
           {/* Fallback route */}
           <Route path="*" element={<h1 className="text-center mt-20 text-2xl">404 - Page Not Found</h1>} />
         </Routes>
+        <ToastContainer position="top-right" autoClose={3000} />
       </Router>
   );
 }

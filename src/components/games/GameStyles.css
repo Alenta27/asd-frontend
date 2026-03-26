@@ -389,16 +389,22 @@
 
 /* Social Attention Test Fullscreen Styles */
 .social-attention-test-fullscreen {
+  position: relative;
+  width: 100%;
+  min-height: 600px;
+  background: #f0f2f5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.social-attention-test-fullscreen:fullscreen {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: #f0f2f5;
   z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 .start-screen-clinical {
@@ -409,6 +415,9 @@
   justify-content: center;
   padding: 40px;
   background: white;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
 }
 
 .clinical-header {
@@ -473,9 +482,18 @@
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
-.clinical-start-btn:hover {
+.clinical-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.clinical-start-btn:hover:not(:disabled) {
   transform: translateY(-5px);
   box-shadow: 0 15px 30px rgba(79, 70, 229, 0.4);
 }

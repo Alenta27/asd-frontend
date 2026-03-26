@@ -29,7 +29,9 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
   const poseLM = useRef(null);
   const requestRef = useRef(null);
   const lastVideoTimeRef = useRef(-1);
+  const lastTimestampMsRef = useRef(0);
   const streamRef = useRef(null);
+  const isCapturingRef = useRef(false);
   const audioCache = useRef({});
   
   const reactionData = useRef({
@@ -38,9 +40,15 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
     gazeDirection: { x: 0.5, y: 0.5 },
     earCovering: false,
     vocalization: 0,
+    vocalizationFrames: 0,
     gazeAvoidance: false,
     headTurn: false,
-    facialDiscomfort: false
+    facialDiscomfort: false,
+    lastNose: null,
+    discomfortFrames: 0,
+    gazeAwayFrames: 0,
+    earCoveringFrames: 0,
+    headTurnFrames: 0
   });
   
   // Microphone tracking
@@ -125,7 +133,10 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
       streamRef.current = stream;
       
       // Transition to capturing state first so video element is rendered
+      isCapturingRef.current = true;
       setIsCapturing(true);
+      lastVideoTimeRef.current = -1;
+      lastTimestampMsRef.current = 0;
       
       // Use a small timeout or wait for next tick to ensure videoRef is populated
       setTimeout(() => {
@@ -160,13 +171,21 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
   };
 
   const trackingLoop = () => {
-    if (!videoRef.current || !isCapturing) return;
+    if (!videoRef.current || !isCapturingRef.current) return;
 
-    const timestamp = Date.now();
+    // MediaPipe requires non-decreasing timestamps. Use a monotonic clock and force strict increment.
+    const getNextTimestampMs = () => {
+      const now = performance.now();
+      const next = Math.max(now, lastTimestampMsRef.current + 1);
+      lastTimestampMsRef.current = next;
+      return next;
+    };
+
     if (videoRef.current.currentTime !== lastVideoTimeRef.current) {
       lastVideoTimeRef.current = videoRef.current.currentTime;
       
       try {
+        const timestamp = getNextTimestampMs();
         const faceResults = faceLM.current?.detectForVideo(videoRef.current, timestamp);
         const handResults = handLM.current?.detectForVideo(videoRef.current, timestamp);
         const poseResults = poseLM.current?.detectForVideo(videoRef.current, timestamp);
@@ -177,96 +196,199 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
       }
     }
 
-    if (isCapturing) {
+    if (isCapturingRef.current) {
       requestRef.current = requestAnimationFrame(trackingLoop);
     }
   };
 
   const analyzeBehaviors = (face, hand, pose) => {
-    // 1. Facial Expressions
+    // Debug: Log detection results
+    const hasDetections = (face && face.faceBlendshapes?.length > 0) || 
+                         (hand && hand.handLandmarks?.length > 0) || 
+                         (pose && pose.landmarks?.length > 0);
+    if (hasDetections && !reactionData.current.debugLogged) {
+      console.log("📊 [Detect] Face:", !!face?.faceBlendshapes?.length, 
+                  "Hand:", !!hand?.handLandmarks?.length, 
+                  "Pose:", !!pose?.landmarks?.length);
+      reactionData.current.debugLogged = true;
+    }
+
+    // 1. Facial Expressions & Gaze Tracking
     if (face && face.faceBlendshapes && face.faceBlendshapes.length > 0) {
       const blendshapes = face.faceBlendshapes[0].categories;
       
-      const distressPatterns = [
-        'browDownLeft', 'browDownRight', 
-        'mouthPucker', 'mouthFunnel',
-        'eyeWideLeft', 'eyeWideRight',
-        'eyeSquintLeft', 'eyeSquintRight',
-        'noseSneerLeft', 'noseSneerRight'
-      ];
+      // Distress patterns with lower thresholds for better detection
+      const distressPatterns = {
+        'browDownLeft': 0.3, 'browDownRight': 0.3,
+        'eyeWideLeft': 0.3, 'eyeWideRight': 0.3,
+        'eyeSquintLeft': 0.3, 'eyeSquintRight': 0.3,
+        'mouthPucker': 0.3, 'mouthFunnel': 0.3,
+        'noseSneerLeft': 0.3, 'noseSneerRight': 0.3
+      };
 
-      const activeExpressions = blendshapes
-        .filter(s => s.score > 0.3)
-        .map(s => s.categoryName);
+      const activeExpressions = [];
+      const distressExpressions = [];
+      
+      blendshapes.forEach(bs => {
+        // Capture only stronger expression signals to avoid micro-noise.
+        if (bs.score > 0.25) {
+          activeExpressions.push(bs.categoryName);
+          // Track distress patterns
+          if (distressPatterns[bs.categoryName] && bs.score > distressPatterns[bs.categoryName]) {
+            distressExpressions.push(bs.categoryName);
+          }
+        }
+      });
       
       if (activeExpressions.length > 0) {
         reactionData.current.facialExpressions = [
           ...new Set([...reactionData.current.facialExpressions, ...activeExpressions])
         ];
+      }
+      
+      if (distressExpressions.length >= 2) {
+        reactionData.current.discomfortFrames += 1;
+      } else {
+        reactionData.current.discomfortFrames = Math.max(0, reactionData.current.discomfortFrames - 1);
+      }
+
+      if (reactionData.current.discomfortFrames >= 6) {
+        reactionData.current.facialDiscomfort = true;
+      }
+
+      // Gaze Avoidance Tracking
+      const eyeLookOutLeft = blendshapes.find(c => c.categoryName === 'eyeLookOutLeft')?.score || 0;
+      const eyeLookOutRight = blendshapes.find(c => c.categoryName === 'eyeLookOutRight')?.score || 0;
+      const eyeLookInLeft = blendshapes.find(c => c.categoryName === 'eyeLookInLeft')?.score || 0;
+      const eyeLookInRight = blendshapes.find(c => c.categoryName === 'eyeLookInRight')?.score || 0;
+      const eyeLookUpLeft = blendshapes.find(c => c.categoryName === 'eyeLookUpLeft')?.score || 0;
+      const eyeLookUpRight = blendshapes.find(c => c.categoryName === 'eyeLookUpRight')?.score || 0;
+      const eyeLookDownLeft = blendshapes.find(c => c.categoryName === 'eyeLookDownLeft')?.score || 0;
+      const eyeLookDownRight = blendshapes.find(c => c.categoryName === 'eyeLookDownRight')?.score || 0;
+
+      const horizontalLook = Math.max(eyeLookOutLeft, eyeLookOutRight, eyeLookInLeft, eyeLookInRight);
+      const verticalLook = Math.max(eyeLookUpLeft, eyeLookUpRight, eyeLookDownLeft, eyeLookDownRight);
+
+      // Require sustained, strong off-center gaze before flagging avoidance.
+      if (horizontalLook > 0.45 || verticalLook > 0.45) {
+        reactionData.current.gazeAwayFrames += 1;
+      } else {
+        reactionData.current.gazeAwayFrames = Math.max(0, reactionData.current.gazeAwayFrames - 1);
+      }
+
+      if (reactionData.current.gazeAwayFrames >= 8) {
+        reactionData.current.gazeAvoidance = true;
+      }
+    }
+
+    // 2. Ear Covering Detection with improved sensitivity
+    if (hand && hand.handLandmarks && hand.handLandmarks.length > 0 && 
+        face && face.faceLandmarks && face.faceLandmarks.length > 0) {
+      try {
+        const leftEar = face.faceLandmarks[0][234];  // Left ear landmark
+        const rightEar = face.faceLandmarks[0][454]; // Right ear landmark
         
-        if (activeExpressions.some(e => distressPatterns.includes(e))) {
-            reactionData.current.facialDiscomfort = true;
-        }
-      }
-
-      // Gaze Tracking (Simplified)
-      if (face.faceBlendshapes[0].categories) {
-        const eyeLookOutLeft = blendshapes.find(c => c.categoryName === 'eyeLookOutLeft')?.score || 0;
-        const eyeLookOutRight = blendshapes.find(c => c.categoryName === 'eyeLookOutRight')?.score || 0;
-        const eyeLookInLeft = blendshapes.find(c => c.categoryName === 'eyeLookInLeft')?.score || 0;
-        const eyeLookInRight = blendshapes.find(c => c.categoryName === 'eyeLookInRight')?.score || 0;
-
-        if (eyeLookOutLeft > 0.4 || eyeLookOutRight > 0.4 || eyeLookInLeft > 0.4 || eyeLookInRight > 0.4) {
-            reactionData.current.gazeAvoidance = true;
-        }
-      }
-    }
-
-    // 2. Ear Covering
-    if (hand && hand.handLandmarks && face && face.faceLandmarks && face.faceLandmarks.length > 0) {
-       const leftEar = face.faceLandmarks[0][234];
-       const rightEar = face.faceLandmarks[0][454];
-       
-       let covered = false;
-       hand.handLandmarks.forEach(handMarks => {
-         handMarks.forEach(mark => {
-           const distLeft = Math.hypot(mark.x - leftEar.x, mark.y - leftEar.y);
-           const distRight = Math.hypot(mark.x - rightEar.x, mark.y - rightEar.y);
-           if (distLeft < 0.15 || distRight < 0.15) {
-             covered = true;
-           }
-         });
-       });
-       
-       if (covered) {
-         reactionData.current.earCovering = true;
-         if (!earCoveringDetected) setEarCoveringDetected(true);
-       } else if (earCoveringDetected) {
-         setEarCoveringDetected(false);
-       }
-    }
-
-    // 3. Head Movement
-    if (pose && pose.landmarks && pose.landmarks.length > 0) {
-        const nose = pose.landmarks[0][0];
-        if (reactionData.current.lastNose) {
-            const movement = Math.hypot(nose.x - reactionData.current.lastNose.x, nose.y - reactionData.current.lastNose.y);
-            reactionData.current.headMovement += movement;
+        if (leftEar && rightEar) {
+          let covered = false;
+          let nearEarPoints = 0;
+          
+          // Check each hand
+          for (let handIdx = 0; handIdx < Math.min(hand.handLandmarks.length, 2); handIdx++) {
+            const handMarks = hand.handLandmarks[handIdx];
             
-            if (movement > 0.08) { // Sudden movement threshold
-                reactionData.current.headTurn = true;
+            // Check key hand points: wrist, thumb, index, middle fingers
+            const keyPoints = [0, 1, 2, 3, 4]; // landmark indices for key hand points
+            
+            for (let point of keyPoints) {
+              if (handMarks[point]) {
+                const mark = handMarks[point];
+                const distLeft = Math.hypot(mark.x - leftEar.x, mark.y - leftEar.y);
+                const distRight = Math.hypot(mark.x - rightEar.x, mark.y - rightEar.y);
+                
+                // Use a tighter threshold to avoid regular hand-near-face false positives.
+                if (distLeft < 0.12 || distRight < 0.12) {
+                  nearEarPoints += 1;
+                }
+              }
             }
+            
+            if (nearEarPoints >= 2) {
+              covered = true;
+              break;
+            }
+
+            if (covered) break;
+          }
+          
+          if (covered) {
+            reactionData.current.earCoveringFrames += 1;
+          } else {
+            reactionData.current.earCoveringFrames = Math.max(0, reactionData.current.earCoveringFrames - 1);
+          }
+
+          if (reactionData.current.earCoveringFrames >= 5) {
+            reactionData.current.earCovering = true;
+            if (!earCoveringDetected) setEarCoveringDetected(true);
+          } else if (earCoveringDetected) {
+            setEarCoveringDetected(false);
+          }
         }
-        reactionData.current.lastNose = nose;
+      } catch (e) {
+        console.error("Ear covering detection error:", e);
+      }
     }
 
-    // 4. Vocalization
+    // 3. Head Movement Tracking
+    if (pose && pose.landmarks && pose.landmarks.length > 0) {
+      try {
+        const nose = pose.landmarks[0][0];
+        if (nose) {
+          if (reactionData.current.lastNose) {
+            const movement = Math.hypot(
+              nose.x - reactionData.current.lastNose.x, 
+              nose.y - reactionData.current.lastNose.y
+            );
+            if (movement > 0.02) {
+              reactionData.current.headMovement += movement;
+            }
+            
+            // Require repeated larger movement before flagging head turn.
+            if (movement > 0.05) {
+              reactionData.current.headTurnFrames += 1;
+            } else {
+              reactionData.current.headTurnFrames = Math.max(0, reactionData.current.headTurnFrames - 1);
+            }
+
+            if (reactionData.current.headTurnFrames >= 4) {
+              reactionData.current.headTurn = true;
+            }
+          }
+          reactionData.current.lastNose = nose;
+        }
+      } catch (e) {
+        console.error("Head movement detection error:", e);
+      }
+    }
+
+    // 4. Vocalization Detection
     if (analyserRef.current) {
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-      analyserRef.current.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      if (average > 40) {
-        reactionData.current.vocalization = Math.max(reactionData.current.vocalization, average);
+      try {
+        const dataArray = new Uint8Array(analyserRef.current.fftSize);
+        analyserRef.current.getByteTimeDomainData(dataArray);
+
+        const rms = Math.sqrt(
+          dataArray.reduce((sum, value) => {
+            const normalized = (value - 128) / 128;
+            return sum + (normalized * normalized);
+          }, 0) / dataArray.length
+        ) * 100;
+
+        if (rms > 18) {
+          reactionData.current.vocalization = Math.max(reactionData.current.vocalization, rms);
+          reactionData.current.vocalizationFrames += 1;
+        }
+      } catch (e) {
+        console.error("Vocalization detection error:", e);
       }
     }
   };
@@ -284,11 +406,18 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
     reactionData.current = {
       facialExpressions: [],
       headMovement: 0,
-      vocalization: 0,
+      gazeDirection: { x: 0.5, y: 0.5 },
       earCovering: false,
+      vocalization: 0,
+      vocalizationFrames: 0,
       gazeAvoidance: false,
       headTurn: false,
       facialDiscomfort: false,
+      lastNose: null,
+      discomfortFrames: 0,
+      gazeAwayFrames: 0,
+      earCoveringFrames: 0,
+      headTurnFrames: 0,
       startTime: Date.now()
     };
 
@@ -322,6 +451,20 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
       
       const reaction = calculateReactionScore(reactionData.current);
       
+      // Debug: Log captured data
+      console.log(`\n🔊 Sound: ${sound.label}`);
+      console.log("  Captures:", {
+        expressions: reactionData.current.facialExpressions?.length || 0,
+        headMovement: parseFloat(reactionData.current.headMovement.toFixed(2)),
+        earCovering: reactionData.current.earCovering,
+        gazeAvoidance: reactionData.current.gazeAvoidance,
+        vocalization: Math.round(reactionData.current.vocalization),
+        vocalizationFrames: reactionData.current.vocalizationFrames,
+        headTurn: reactionData.current.headTurn,
+        facialDiscomfort: reactionData.current.facialDiscomfort
+      });
+      console.log("  Score:", reaction.score, "Reactions:", reaction.reactions);
+      
       const soundResult = {
         soundName: sound.label,
         soundType: sound.type,
@@ -335,6 +478,7 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
           facialExpressions: reactionData.current.facialExpressions,
           headMovement: parseFloat(reactionData.current.headMovement.toFixed(3)),
           vocalization: Math.round(reactionData.current.vocalization),
+          vocalizationFrames: reactionData.current.vocalizationFrames,
           earCovering: reactionData.current.earCovering,
           gazeAvoidance: reactionData.current.gazeAvoidance,
           headTurn: reactionData.current.headTurn
@@ -350,37 +494,49 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
 
   const calculateReactionScore = (data) => {
     const reactions = [];
+    
+    // Track all behavioral indicators
     if (data.earCovering) reactions.push("Ear Covering");
     if (data.headTurn) reactions.push("Head Turn");
     if (data.gazeAvoidance) reactions.push("Gaze Avoidance");
     if (data.facialDiscomfort) reactions.push("Facial Discomfort");
-    if (data.vocalization > 80) reactions.push("Vocalization");
+    if (data.headMovement > 0.45) reactions.push("Head Movement");
+    if (data.vocalization > 25 && data.vocalizationFrames >= 10) reactions.push("Vocalization");
 
-    // 2 = Strong, 1 = Mild, 0 = None
+    // Scoring logic: 2 = Strong reaction, 1 = Mild reaction, 0 = No reaction
     let score = 0;
-    if (data.earCovering || data.vocalization > 100) {
+    
+    // Strong reaction indicators
+    if (data.earCovering || (reactions.length >= 3) || (data.headMovement > 0.9 && data.gazeAvoidance)) {
       score = 2;
-    } else if (reactions.length > 0 || data.headMovement > 0.3) {
+    } 
+    // Mild reaction indicators
+    else if (reactions.length >= 1 || data.headMovement > 0.45) {
       score = 1;
-      if (reactions.length >= 2 || data.headMovement > 0.8) {
-          score = 2;
+      // Upgrade to strong if multiple responses
+      if (reactions.length >= 2 && (data.headMovement > 0.6 || (data.vocalization > 30 && data.vocalizationFrames >= 14))) {
+        score = 2;
       }
     }
     
     return {
-        score,
-        reactions,
-        intensity: score === 2 ? "Strong" : score === 1 ? "Mild" : "None"
+      score,
+      reactions: [...new Set(reactions)], // Remove duplicates
+      intensity: score === 2 ? "Strong" : score === 1 ? "Mild" : "None"
     };
   };
 
   const finishAssessment = () => {
+    isCapturingRef.current = false;
     setIsCapturing(false);
     cleanup();
     setAssessmentComplete(true);
   };
 
   const cleanup = () => {
+    isCapturingRef.current = false;
+    lastTimestampMsRef.current = 0;
+    lastVideoTimeRef.current = -1;
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -431,6 +587,12 @@ const SoundSensitivityGame = ({ studentId, onComplete }) => {
       completedAt: new Date().toISOString()
     };
 
+    console.log("\n✅ Assessment Complete:");
+    console.log("  Total Sounds:", results.length);
+    console.log("  Overall Level:", overallLevel);
+    console.log("  Avg Score:", avgScore.toFixed(2));
+    console.log("  Final Data:", assessmentData);
+    
     onComplete(assessmentData);
   };
 

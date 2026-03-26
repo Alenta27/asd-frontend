@@ -1,0 +1,331 @@
+.dream-analysis-container {
+  padding: 0;
+  max-width: 100%;
+  margin: 0 auto;
+  background: transparent;
+}
+
+
+.dream-loading,
+.dream-error {
+  padding: 40px;
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+  background: white;
+  border-radius: 12px;
+  margin: 20px;
+}
+
+.dream-error {
+  color: #ef4444;
+  border: 1px solid #fee2e2;
+}
+
+.dream-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.dream-title-section {
+  flex: 1;
+}
+
+.dream-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+}
+
+.dream-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.dream-subject-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.subject-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.subject-selector-input {
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1f2937;
+  background: #f9fafb;
+  cursor: pointer;
+  min-width: 300px;
+  transition: all 0.2s;
+}
+
+.subject-selector-input:hover {
+  border-color: #667eea;
+  background: white;
+}
+
+.subject-selector-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Participant Info Card */
+.participant-info-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.condition-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.condition-badge.asd {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.condition-badge.td {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+/* Metrics Grid */
+.dream-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.dream-metric-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.dream-metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dream-metric-card.wide {
+  grid-column: span 2;
+}
+
+.metric-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.metric-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.metric-category {
+  font-size: 11px;
+  font-weight: 600;
+  color: #667eea;
+  background: #ede9fe;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.metric-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric-value-large {
+  font-size: 42px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.metric-unit {
+  font-size: 18px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.metric-progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.metric-progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s ease, background-color 0.3s;
+}
+
+.metric-interpretation {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metric-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+
+.metric-description {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Footer */
+.dream-footer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-text {
+  font-size: 14px;
+  color: #4b5563;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.footer-text strong {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dream-analysis-container {
+    padding: 20px;
+  }
+
+  .dream-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dream-subject-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .subject-selector-input {
+    min-width: 100%;
+  }
+
+  .dream-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dream-metric-card.wide {
+    grid-column: span 1;
+  }
+
+  .metric-value-large {
+    font-size: 32px;
+  }
+
+  .info-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .dream-title {
+    font-size: 22px;
+  }
+
+  .metric-title {
+    font-size: 16px;
+  }
+
+  .metric-value-large {
+    font-size: 28px;
+  }
+}

@@ -9,6 +9,7 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, parentId }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
   if (!isOpen) return null;
 
@@ -18,8 +19,32 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, parentId }) => {
     { code: 'hi-IN', name: 'हिंदी (Hindi) - PRO', flag: '🇮🇳', isFree: false }
   ];
 
+  const validateForm = () => {
+    const errors = {};
+    if (!childName.trim()) {
+      errors.childName = "Child's name is required";
+    } else if (childName.trim().length < 2) {
+      errors.childName = "Name must be at least 2 characters";
+    }
+
+    if (!age) {
+      errors.age = "Age is required";
+    } else {
+      const ageNum = parseInt(age);
+      if (isNaN(ageNum) || ageNum < 1 || ageNum > 18) {
+        errors.age = "Age must be between 1 and 18";
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
     setError(null);
     
@@ -31,7 +56,7 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, parentId }) => {
       }
 
       const response = await axios.post('http://localhost:5000/api/speech-therapy/child', {
-        childName,
+        childName: childName.trim(),
         age: parseInt(age),
         preferredLanguage,
         parentId
@@ -56,6 +81,7 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, parentId }) => {
     setAge('');
     setPreferredLanguage('en-US');
     setError(null);
+    setValidationErrors({});
     setIsSuccess(false);
     onClose();
   };
@@ -105,17 +131,20 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, parentId }) => {
                   Child's Name *
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <User className={`absolute left-3 top-1/2 -translate-y-1/2 ${validationErrors.childName ? 'text-red-400' : 'text-gray-400'}`} size={18} />
                   <input
                     type="text"
-                    required
                     value={childName}
-                    onChange={(e) => setChildName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:bg-white outline-none transition-all font-medium"
+                    onChange={(e) => {
+                      setChildName(e.target.value);
+                      if (validationErrors.childName) setValidationErrors(prev => ({...prev, childName: null}));
+                    }}
+                    className={`w-full pl-10 pr-4 py-3 bg-gray-50 border-2 ${validationErrors.childName ? 'border-red-200' : 'border-gray-100'} rounded-2xl focus:border-purple-500 focus:bg-white outline-none transition-all font-medium`}
                     placeholder="Enter child's name"
                     disabled={isSubmitting}
                   />
                 </div>
+                {validationErrors.childName && <p className="mt-1 text-xs text-red-500 font-bold ml-1">{validationErrors.childName}</p>}
               </div>
 
               <div>
@@ -123,19 +152,20 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, parentId }) => {
                   Age *
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 ${validationErrors.age ? 'text-red-400' : 'text-gray-400'}`} size={18} />
                   <input
                     type="number"
-                    required
-                    min="1"
-                    max="18"
                     value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-500 focus:bg-white outline-none transition-all font-medium"
+                    onChange={(e) => {
+                      setAge(e.target.value);
+                      if (validationErrors.age) setValidationErrors(prev => ({...prev, age: null}));
+                    }}
+                    className={`w-full pl-10 pr-4 py-3 bg-gray-50 border-2 ${validationErrors.age ? 'border-red-200' : 'border-gray-100'} rounded-2xl focus:border-purple-500 focus:bg-white outline-none transition-all font-medium`}
                     placeholder="Child's age"
                     disabled={isSubmitting}
                   />
                 </div>
+                {validationErrors.age && <p className="mt-1 text-xs text-red-500 font-bold ml-1">{validationErrors.age}</p>}
               </div>
 
               <div>

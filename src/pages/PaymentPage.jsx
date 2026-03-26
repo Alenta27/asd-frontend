@@ -25,44 +25,107 @@ const PaymentPage = () => {
       setPaymentProcessing(true);
       setError(null);
 
-      // Simulate network delay
-      setTimeout(async () => {
-        try {
-          // Verify payment on backend with dummy success
-          const token = localStorage.getItem('token');
-          const verifyResponse = await fetch('http://localhost:5000/api/parent/verify-payment', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              appointmentId: paymentData.appointmentId,
-              dummy_success: true
-            })
-          });
+      // Check if Razorpay SDK is loaded
+      if (!window.Razorpay) {
+        throw new Error('Razorpay SDK not loaded. Please refresh the page.');
+      }
 
-          if (verifyResponse.ok) {
-            const verifyData = await verifyResponse.json();
-            console.log('Payment verified (Dummy):', verifyData);
-            setPaymentSuccess(true);
-            
-            // Redirect to appointments page after 2 seconds
-            setTimeout(() => {
-              navigate('/parent/appointments', { 
-                state: { successMessage: 'Appointment booked successfully!' }
-              });
-            }, 2000);
-          } else {
-            const errorData = await verifyResponse.json();
-            throw new Error(errorData.message || 'Payment verification failed');
+      if (!paymentData.keyId) {
+        throw new Error('Razorpay configuration error. Please contact support.');
+      }
+
+      // Get user info for prefill
+      const token = localStorage.getItem('token');
+      let userName = 'User';
+      let userEmail = paymentData.parentEmail || '';
+      let userPhone = paymentData.parentPhone || '';
+
+      try {
+        const userResponse = await fetch('http://localhost:5000/api/parent/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
-        } catch (err) {
-          console.error('Payment verification error:', err);
-          setError('Payment simulation failed: ' + err.message);
-          setPaymentProcessing(false);
+        });
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          userName = userData.username || 'User';
+          userEmail = userData.email || userEmail;
+          userPhone = userData.phone || userPhone;
         }
-      }, 2000);
+      } catch (e) {
+        console.error('Failed to fetch user info for payment prefill');
+      }
+
+      // Create Razorpay options
+      const options = {
+        key: paymentData.keyId,
+        amount: paymentData.amount * 100, // Convert to paise
+        currency: 'INR',
+        name: 'Cortexa - ASD Detection',
+        description: 'Appointment Booking Fee',
+        image: '/logo192.png',
+        order_id: paymentData.orderId,
+        handler: async (response) => {
+          try {
+            console.log('✓ Payment successful, verifying...');
+            
+            // Verify payment on backend
+            const verifyResponse = await fetch('http://localhost:5000/api/parent/verify-payment', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                appointmentId: paymentData.appointmentId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json();
+              console.log('✓ Payment verified successfully!', verifyData);
+              setPaymentSuccess(true);
+              setPaymentProcessing(false);
+              
+              // Redirect to appointments page after 2 seconds
+              setTimeout(() => {
+                navigate('/parent/appointments', { 
+                  state: { successMessage: 'Appointment booked successfully!' }
+                });
+              }, 2000);
+            } else {
+              const errorData = await verifyResponse.json();
+              throw new Error(errorData.message || 'Payment verification failed');
+            }
+          } catch (err) {
+            console.error('Payment verification error:', err);
+            setError('Payment verification failed: ' + err.message);
+            setPaymentProcessing(false);
+          }
+        },
+        prefill: {
+          name: userName,
+          email: userEmail,
+          contact: userPhone
+        },
+        theme: {
+          color: '#6366f1',
+        },
+        modal: {
+          ondismiss: () => {
+            setPaymentProcessing(false);
+            setError('Payment cancelled');
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      
     } catch (err) {
       console.error('Error in payment process:', err);
       setPaymentProcessing(false);
@@ -172,7 +235,7 @@ const PaymentPage = () => {
           {paymentProcessing ? (
             <>
               <FiLoader className="spinner" />
-              Processing...
+              Opening Razorpay...
             </>
           ) : (
             `Pay ₹${paymentData.amount}`
@@ -181,8 +244,8 @@ const PaymentPage = () => {
 
         {/* Payment Info */}
         <div className="payment-info">
-          <p>🔒 This is a simulated payment for demo purposes</p>
-          <p>Cortexa Secure Payment</p>
+          <p>🔒 Secure payment powered by Razorpay</p>
+          <p>All transactions are encrypted and secure</p>
         </div>
       </div>
 

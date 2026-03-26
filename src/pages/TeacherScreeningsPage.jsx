@@ -19,21 +19,6 @@ const getScoreColor = (score) => {
   return 'text-red-600';
 };
 
-const fallbackScreenings = [
-  { id: 'fallback-manuel', studentName: 'Manuel Saji', type: 'Parent Questionnaire', riskLevel: 'Low', assignedDate: '2025-09-10', dueDate: '2025-09-17', status: 'Completed', score: 94 },
-  { id: 'fallback-rohan', studentName: 'Rohan Sharma', type: 'Classroom Observation', riskLevel: 'Low', assignedDate: '2025-09-08', dueDate: '2025-09-15', status: 'Completed', score: 90 },
-  { id: 'fallback-priya', studentName: 'Priya Patel', type: 'Teacher Checklist', riskLevel: 'Medium', assignedDate: '2025-09-18', dueDate: '2025-09-25', status: 'Completed', score: 82 },
-  { id: 'fallback-aditya', studentName: 'Aditya Singh', type: 'Parent Questionnaire', riskLevel: 'High', assignedDate: '2025-10-04', dueDate: '2025-10-11', status: 'In Progress', score: null },
-  { id: 'fallback-ananya', studentName: 'Ananya Reddy', type: 'Teacher Checklist', riskLevel: 'Low', assignedDate: '2025-09-20', dueDate: '2025-09-27', status: 'Completed', score: 96 },
-  { id: 'fallback-vikram', studentName: 'Vikram Kumar', type: 'Speech Assessment', riskLevel: 'Medium', assignedDate: '2025-09-27', dueDate: '2025-10-04', status: 'Completed', score: 78 },
-  { id: 'fallback-diya', studentName: 'Diya Gupta', type: 'Parent Questionnaire', riskLevel: 'Low', assignedDate: '2025-09-14', dueDate: '2025-09-21', status: 'Completed', score: 91 },
-  { id: 'fallback-arjun', studentName: 'Arjun Menon', type: 'Behavior Checklist', riskLevel: 'Medium', assignedDate: '2025-10-07', dueDate: '2025-10-14', status: 'Pending', score: null },
-  { id: 'fallback-aisha', studentName: 'Aisha Khan', type: 'Parent Questionnaire', riskLevel: 'Low', assignedDate: '2025-09-23', dueDate: '2025-09-30', status: 'Completed', score: 88 },
-  { id: 'fallback-karan', studentName: 'Karan Verma', type: 'Teacher Checklist', riskLevel: 'High', assignedDate: '2025-10-13', dueDate: '2025-10-20', status: 'In Progress', score: null },
-  { id: 'fallback-sneha', studentName: 'Sneha Desai', type: 'Speech Assessment', riskLevel: 'Medium', assignedDate: '2025-10-06', dueDate: '2025-10-13', status: 'Pending', score: null },
-  { id: 'fallback-adwaith', studentName: 'Adwaith Verma', type: 'Parent Questionnaire', riskLevel: 'Low', assignedDate: '2025-08-06', dueDate: '2025-08-13', status: 'Completed', score: 89 }
-];
-
 const normalizeRisk = (value) => {
   const text = typeof value === 'string' ? value : '';
   const lower = text.toLowerCase();
@@ -42,47 +27,93 @@ const normalizeRisk = (value) => {
   return 'Low';
 };
 
+const buildFallbackReportPayload = (screening) => {
+  const scoreText = typeof screening?.score === 'number' ? `${screening.score}%` : 'N/A';
+  const risk = screening?.riskLevel || 'Low';
+  const summary = [
+    `This report summarizes the latest ${screening?.type || 'screening'} for ${screening?.studentName || 'the student'}.`,
+    `Current status is ${screening?.status || 'Pending'}, risk level is ${risk}, and score is ${scoreText}.`,
+    'These findings should be interpreted with classroom observations and follow-up assessments for a complete understanding.'
+  ].join(' ');
+
+  const strengths =
+    risk === 'Low'
+      ? 'The student shows stable responses during screening tasks and demonstrates encouraging developmental indicators.'
+      : risk === 'Medium'
+        ? 'The student shows partial strengths in structured tasks, providing a useful baseline for targeted support.'
+        : 'The screening captured clear behavioral signals that support focused and timely intervention planning.';
+
+  const recommendations =
+    risk === 'Low'
+      ? 'Continue periodic monitoring and maintain current supportive classroom practices.'
+      : risk === 'Medium'
+        ? 'Plan focused support sessions and repeat assessment in 4 to 6 weeks to track changes.'
+        : 'Coordinate specialist follow-up and implement structured interventions with close short-term monitoring.';
+
+  return {
+    studentId: screening.id,
+    title: `${screening?.type || 'Screening'} Report - ${screening?.studentName || 'Student'}`,
+    date: screening?.assignedDate && screening.assignedDate !== '-' ? screening.assignedDate : new Date().toISOString(),
+    period: `${new Date().getFullYear()} Screening Cycle`,
+    summary,
+    strengths,
+    recommendations,
+    status: 'final'
+  };
+};
+
 const TeacherScreeningsPage = () => {
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
   const [screenings, setScreenings] = useState([]);
   const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [selectedReport, setSelectedReport] = useState(null);
 
   useEffect(() => {
     const fetchScreenings = async () => {
       setFetching(true);
+      setFetchError('');
       try {
         const token = localStorage.getItem('token');
-        let normalized = [];
-        if (token) {
-          const response = await fetch('http://localhost:5000/api/teacher/screenings', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            normalized = Array.isArray(data)
-              ? data.map((item, index) => ({
-                  id: item.id || `screening-${index + 1}`,
-                  studentName: item.studentName || 'Student',
-                  type: item.type || 'Questionnaire',
-                  riskLevel: normalizeRisk(item.riskLevel),
-                  assignedDate: item.assignedDate || '2025-09-15',
-                  dueDate: item.dueDate || '2025-09-22',
-                  status: item.status || 'Pending',
-                  score: typeof item.score === 'number' ? item.score : null,
-                }))
-              : [];
+        if (!token) {
+          setScreenings([]);
+          setFetchError('Please sign in to view screenings.');
+          return;
+        }
+
+        const response = await fetch(`${API_BASE}/api/teacher/screenings`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch screenings (${response.status})`);
         }
-        if (!normalized.length) {
-          normalized = fallbackScreenings;
-        }
+
+        const data = await response.json();
+        const normalized = Array.isArray(data)
+          ? data.map((item, index) => ({
+              id: item.id || `screening-${index + 1}`,
+              studentName: item.studentName || 'Student',
+              type: item.type || 'Unknown',
+              riskLevel: normalizeRisk(item.riskLevel),
+              assignedDate: item.assignedDate || '-',
+              dueDate: item.dueDate || '-',
+              status: item.status || 'Pending',
+              score: typeof item.score === 'number' ? item.score : null,
+            }))
+          : [];
+
         setScreenings(normalized);
       } catch (error) {
-        setScreenings(fallbackScreenings);
+        setScreenings([]);
+        setFetchError(error.message || 'Failed to load screenings.');
       } finally {
         setFetching(false);
       }
@@ -90,6 +121,94 @@ const TeacherScreeningsPage = () => {
 
     fetchScreenings();
   }, []);
+
+  const handleViewReport = async (screening) => {
+    setReportLoading(true);
+    setReportError('');
+    setSelectedReport(null);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please sign in to view the report.');
+      }
+
+      const response = await fetch(`${API_BASE}/api/teacher/screenings/${screening.id}/report`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedReport(data);
+        return;
+      }
+
+      // Fallback for older backend builds where /screenings/:studentId/report is not available yet.
+      if (response.status === 404) {
+        const existingRes = await fetch(`${API_BASE}/api/teacher/reports/student/${screening.id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!existingRes.ok) {
+          throw new Error(`Failed to load report (${existingRes.status})`);
+        }
+
+        const existingReports = await existingRes.json();
+        let report = Array.isArray(existingReports) && existingReports.length
+          ? existingReports[0]
+          : null;
+
+        if (!report) {
+          const createPayload = buildFallbackReportPayload(screening);
+          const createRes = await fetch(`${API_BASE}/api/teacher/reports`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(createPayload)
+          });
+
+          if (!createRes.ok) {
+            throw new Error(`Failed to create report (${createRes.status})`);
+          }
+
+          report = await createRes.json();
+        }
+
+        setSelectedReport({
+          report,
+          screening: {
+            studentId: screening.id,
+            studentName: screening.studentName,
+            type: screening.type,
+            riskLevel: screening.riskLevel,
+            status: screening.status,
+            score: screening.score,
+            screeningDate: screening.assignedDate
+          }
+        });
+        return;
+      }
+
+      throw new Error(`Failed to load report (${response.status})`);
+    } catch (error) {
+      setReportError(error.message || 'Failed to load report.');
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const closeReportModal = () => {
+    setSelectedReport(null);
+    setReportError('');
+    setReportLoading(false);
+  };
 
   const filteredScreenings = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -176,7 +295,9 @@ const TeacherScreeningsPage = () => {
             {fetching ? (
               <div className="py-12 text-center text-gray-500">Loading screenings...</div>
             ) : filteredScreenings.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">No screenings match your criteria.</div>
+              <div className="py-12 text-center text-gray-500">
+                {fetchError || 'No screenings match your criteria.'}
+              </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -223,7 +344,11 @@ const TeacherScreeningsPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         {screening.status === 'Completed' ? (
-                          <button className="text-blue-600 hover:text-blue-900">
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleViewReport(screening)}
+                            title="View screening report"
+                          >
                             <FaEye />
                           </button>
                         ) : (
@@ -240,6 +365,79 @@ const TeacherScreeningsPage = () => {
           </div>
         </div>
       </div>
+
+      {(reportLoading || reportError || selectedReport) && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-800">Screening Report</h3>
+              <button
+                onClick={closeReportModal}
+                className="text-gray-500 hover:text-gray-700 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {reportLoading && <p className="text-gray-600">Generating report...</p>}
+
+              {!reportLoading && reportError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 text-sm">
+                  {reportError}
+                </div>
+              )}
+
+              {!reportLoading && selectedReport?.report && (
+                <>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900">{selectedReport.report.title}</h4>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Date: {new Date(selectedReport.report.date).toLocaleDateString()} | Status: {selectedReport.report.status}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-gray-500">Student</p>
+                      <p className="font-semibold text-gray-800">{selectedReport.screening?.studentName || 'N/A'}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-gray-500">Screening Type</p>
+                      <p className="font-semibold text-gray-800">{selectedReport.screening?.type || 'N/A'}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-gray-500">Risk Level</p>
+                      <p className="font-semibold text-gray-800">{selectedReport.screening?.riskLevel || 'N/A'}</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-gray-500">Score</p>
+                      <p className="font-semibold text-gray-800">
+                        {typeof selectedReport.screening?.score === 'number' ? `${selectedReport.screening.score}%` : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h5 className="text-sm font-semibold text-gray-700 mb-1">Summary</h5>
+                    <p className="text-sm text-gray-700 leading-6 whitespace-pre-line">{selectedReport.report.summary}</p>
+                  </div>
+
+                  <div>
+                    <h5 className="text-sm font-semibold text-gray-700 mb-1">Strengths</h5>
+                    <p className="text-sm text-gray-700 leading-6 whitespace-pre-line">{selectedReport.report.strengths || 'N/A'}</p>
+                  </div>
+
+                  <div>
+                    <h5 className="text-sm font-semibold text-gray-700 mb-1">Recommendations</h5>
+                    <p className="text-sm text-gray-700 leading-6 whitespace-pre-line">{selectedReport.report.recommendations || 'N/A'}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

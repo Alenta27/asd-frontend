@@ -9,19 +9,53 @@ const ParentRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
   if (!isOpen) return null;
 
+  const validateForm = () => {
+    const errors = {};
+    
+    // Name validation
+    if (!parentName.trim()) {
+      errors.parentName = 'Name is required';
+    } else if (parentName.trim().length < 3) {
+      errors.parentName = 'Name must be at least 3 characters';
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!parentEmail.trim()) {
+      errors.parentEmail = 'Email is required';
+    } else if (!emailRegex.test(parentEmail.trim())) {
+      errors.parentEmail = 'Invalid email format';
+    }
+
+    // Phone validation (Optional but must be valid if provided)
+    if (phone.trim()) {
+      const phoneRegex = /^\+?[\d\s-]{10,15}$/;
+      if (!phoneRegex.test(phone.trim())) {
+        errors.phone = 'Invalid phone format (10-15 digits)';
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
     setError(null);
     
     try {
       const response = await axios.post('http://localhost:5000/api/speech-therapy/parent', {
-        parentName,
-        parentEmail,
-        phone
+        parentName: parentName.trim(),
+        parentEmail: parentEmail.trim().toLowerCase(),
+        phone: phone.trim()
       });
 
       // Store parent info in localStorage
@@ -51,6 +85,7 @@ const ParentRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     setParentEmail('');
     setPhone('');
     setError(null);
+    setValidationErrors({});
     setIsSuccess(false);
     onClose();
   };
@@ -84,7 +119,7 @@ const ParentRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 Parent Registration
               </h2>
               <p className="text-blue-100 text-sm font-medium">
-                Register to start speech therapy for your child
+                Register to unlock Malayalam, Hindi, and detailed progress tracking!
               </p>
             </div>
 
@@ -100,17 +135,20 @@ const ParentRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   Your Name *
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <User className={`absolute left-3 top-1/2 -translate-y-1/2 ${validationErrors.parentName ? 'text-red-400' : 'text-gray-400'}`} size={18} />
                   <input
                     type="text"
-                    required
                     value={parentName}
-                    onChange={(e) => setParentName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
+                    onChange={(e) => {
+                      setParentName(e.target.value);
+                      if (validationErrors.parentName) setValidationErrors(prev => ({...prev, parentName: null}));
+                    }}
+                    className={`w-full pl-10 pr-4 py-3 bg-gray-50 border-2 ${validationErrors.parentName ? 'border-red-200' : 'border-gray-100'} rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium`}
                     placeholder="Enter your full name"
                     disabled={isSubmitting}
                   />
                 </div>
+                {validationErrors.parentName && <p className="mt-1 text-xs text-red-500 font-bold ml-1">{validationErrors.parentName}</p>}
               </div>
 
               <div>
@@ -118,17 +156,20 @@ const ParentRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   Email Address *
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 ${validationErrors.parentEmail ? 'text-red-400' : 'text-gray-400'}`} size={18} />
                   <input
                     type="email"
-                    required
                     value={parentEmail}
-                    onChange={(e) => setParentEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
+                    onChange={(e) => {
+                      setParentEmail(e.target.value);
+                      if (validationErrors.parentEmail) setValidationErrors(prev => ({...prev, parentEmail: null}));
+                    }}
+                    className={`w-full pl-10 pr-4 py-3 bg-gray-50 border-2 ${validationErrors.parentEmail ? 'border-red-200' : 'border-gray-100'} rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium`}
                     placeholder="your.email@example.com"
                     disabled={isSubmitting}
                   />
                 </div>
+                {validationErrors.parentEmail && <p className="mt-1 text-xs text-red-500 font-bold ml-1">{validationErrors.parentEmail}</p>}
               </div>
 
               <div>
@@ -136,16 +177,20 @@ const ParentRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   Phone Number (Optional)
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 ${validationErrors.phone ? 'text-red-400' : 'text-gray-400'}`} size={18} />
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium"
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (validationErrors.phone) setValidationErrors(prev => ({...prev, phone: null}));
+                    }}
+                    className={`w-full pl-10 pr-4 py-3 bg-gray-50 border-2 ${validationErrors.phone ? 'border-red-200' : 'border-gray-100'} rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition-all font-medium`}
                     placeholder="+1 (555) 123-4567"
                     disabled={isSubmitting}
                   />
                 </div>
+                {validationErrors.phone && <p className="mt-1 text-xs text-red-500 font-bold ml-1">{validationErrors.phone}</p>}
               </div>
 
               <button

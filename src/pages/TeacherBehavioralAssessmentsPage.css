@@ -307,6 +307,9 @@
   min-height: 500px;
   max-height: 80vh;
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
 }
 
 .stat-card {

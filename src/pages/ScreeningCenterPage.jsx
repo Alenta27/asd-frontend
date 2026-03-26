@@ -158,7 +158,11 @@ const ScreeningCenterPage = () => {
               </div>
 
               <button
-                onClick={() => setStep1Complete(!step1Complete)}
+                onClick={() => {
+                  if (!step1Complete) {
+                    navigate('/facial-screening');
+                  }
+                }}
                 disabled={step1Complete}
                 className={`px-8 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition ${
                   step1Complete

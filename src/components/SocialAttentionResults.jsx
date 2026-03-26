@@ -7,11 +7,15 @@ import {
 const SocialAttentionResults = ({ results }) => {
   if (!results) return null;
 
-  const { socialPreferenceScore, leftTime, rightTime, clinicalSummary, logs } = results;
+  const { socialPreferenceScore = 0, leftTime = 0, rightTime = 0, leftLookTime = 0, rightLookTime = 0, clinicalSummary = "No data available", logs, metrics } = results;
+
+  // Use leftTime/rightTime if available, otherwise fall back to leftLookTime/rightLookTime
+  const leftTimeMs = leftTime || leftLookTime || 0;
+  const rightTimeMs = rightTime || rightLookTime || 0;
 
   const barData = [
-    { name: 'Social (Left)', time: leftTime / 1000 },
-    { name: 'Non-Social (Right)', time: rightTime / 1000 },
+    { name: 'Social (Left)', time: leftTimeMs / 1000 },
+    { name: 'Non-Social (Right)', time: rightTimeMs / 1000 },
   ];
 
   // Prepare timeline data from logs
@@ -23,7 +27,7 @@ const SocialAttentionResults = ({ results }) => {
   return (
     <div className="social-attention-results">
       <div className="results-hero">
-        <div className="score-large">{Math.round(socialPreferenceScore)}%</div>
+        <div className="score-large">{Math.round(socialPreferenceScore || 0)}%</div>
         <div className="score-label">Social Preference Score</div>
       </div>
 
@@ -41,27 +45,29 @@ const SocialAttentionResults = ({ results }) => {
           </ResponsiveContainer>
         </div>
 
-        <div className="chart-box">
-          <h4>Gaze Shift Timeline (Social vs Non-Social)</h4>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={timelineData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" label={{ value: 'Time (s)', position: 'insideBottom', offset: -5 }} />
-              <YAxis 
-                ticks={[0, 1]} 
-                tickFormatter={(val) => val === 1 ? 'Social' : 'Object'}
-              />
-              <Tooltip />
-              <Line 
-                type="stepAfter" 
-                dataKey="side" 
-                stroke="#ff1493" 
-                strokeWidth={3} 
-                dot={false} 
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {logs && logs.length > 0 && (
+          <div className="chart-box">
+            <h4>Gaze Shift Timeline (Social vs Non-Social)</h4>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={timelineData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="time" label={{ value: 'Time (s)', position: 'insideBottom', offset: -5 }} />
+                <YAxis 
+                  ticks={[0, 1]} 
+                  tickFormatter={(val) => val === 1 ? 'Social' : 'Object'}
+                />
+                <Tooltip />
+                <Line 
+                  type="stepAfter" 
+                  dataKey="side" 
+                  stroke="#ff1493" 
+                  strokeWidth={3} 
+                  dot={false} 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       <div className="clinical-summary-box">

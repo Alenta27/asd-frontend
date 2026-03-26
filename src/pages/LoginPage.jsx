@@ -18,7 +18,7 @@ export default function LoginPage() {
   // Validation state
   const [errors, setErrors] = useState({ email: '', password: '' });
   const [touched, setTouched] = useState({ email: false, password: false });
-  
+
   const [resetOpen, setResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -82,9 +82,9 @@ export default function LoginPage() {
       setSubmitting(true);
       localStorage.clear();
       sessionStorage.clear();
-      
+
       const res = await axios.post('http://localhost:5000/api/auth/login', { email, password, role });
-      
+
       const roleIdField = {
         parent: 'parentId',
         therapist: 'therapistId',
@@ -92,15 +92,15 @@ export default function LoginPage() {
         researcher: 'researcherId',
         admin: 'adminId'
       };
-      
+
       if (res.data.user && roleIdField[role]) {
         localStorage.setItem(roleIdField[role], res.data.user[roleIdField[role]]);
       }
-      
+
       if (res.data.user) {
         localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
       }
-      
+
       handleLoginSuccess(res.data.token);
     } catch (err) {
       setMessage(err.response?.data?.message || 'Sign in failed.');
@@ -113,11 +113,11 @@ export default function LoginPage() {
     try {
       localStorage.clear();
       sessionStorage.clear();
-      
+
       const token = credentialResponse.credential;
       const selectedRole = role;
       const res = await axios.post('http://localhost:5000/api/auth/google', { token, expectedRole: selectedRole });
-      
+
       console.log('🔍 Google Auth Response:', {
         isNewUser: res.data.isNewUser,
         userRole: res.data.user?.role,
@@ -133,7 +133,7 @@ export default function LoginPage() {
         setMessage(`This Google account is registered as ${res.data.user.role}. Please choose ${res.data.user.role} to sign in.`);
         return;
       }
-      
+
       if (res.data.user) {
         const roleIdField = {
           parent: 'parentId',
@@ -142,14 +142,14 @@ export default function LoginPage() {
           researcher: 'researcherId',
           admin: 'adminId'
         };
-        
+
         const idField = roleIdField[res.data.user.role];
         if (idField && res.data.user[idField]) {
           localStorage.setItem(idField, res.data.user[idField]);
         }
         localStorage.setItem('user', JSON.stringify(sanitizeUserObject(res.data.user)));
       }
-      
+
       if (res.data.isNewUser) {
         console.log('➡️ New user detected, redirecting to /select-role');
         localStorage.setItem('token', res.data.token);
@@ -164,7 +164,7 @@ export default function LoginPage() {
       setMessage(err.response?.data?.message || 'Error with Google sign in');
     }
   };
- 
+
   const handleOpenReset = () => {
     setResetOpen(true);
     setResetEmail(email);
@@ -214,12 +214,12 @@ export default function LoginPage() {
     }
   };
 
-  const eyeIcon = ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg> );
-  const eyeOffIcon = ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.91 4.24A9.97 9.97 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.94 4.06M2 2l20 20"></path></svg> );
+  const eyeIcon = (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>);
+  const eyeOffIcon = (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.91 4.24A9.97 9.97 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.94 4.06M2 2l20 20"></path></svg>);
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
-    <div className="min-h-screen md:flex font-sans">
+      <div className="min-h-screen md:flex font-sans">
         <div
           className="relative hidden md:block md:w-1/2 bg-cover bg-center"
           style={{ backgroundImage: 'url(/images/login-inspiration-bg.jpg)' }}
@@ -246,6 +246,7 @@ export default function LoginPage() {
                   <option value="therapist">Therapist</option>
                   <option value="researcher">Researcher</option>
                   <option value="teacher">Teacher</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
               <div>

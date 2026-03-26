@@ -3,16 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { FiHome, FiUsers, FiClipboard, FiBarChart2, FiSettings, FiLogOut, FiActivity } from 'react-icons/fi';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ASDRiskEstimator from '../components/ASDRiskEstimator';
+import AwarenessHub from '../components/awareness/AwarenessHub';
+import TeacherAudioCapture from '../components/TeacherAudioCapture';
 import './TeacherDashboard.css';
-
-const progressChartData = [
-  { month: 'Aug', progress: 45 },
-  { month: 'Sep', progress: 52 },
-  { month: 'Oct', progress: 58 },
-  { month: 'Nov', progress: 65 },
-  { month: 'Dec', progress: 72 },
-  { month: 'Jan', progress: 78 },
-];
 
 const Sidebar = ({ activeNav, onNavClick, onLogout }) => {
   const navItems = [
@@ -69,6 +62,7 @@ const MainContent = ({
   stats,
   students,
   loading,
+  progressChartData = [],
   onViewStudents = () => {},
   onReviewScreenings = () => {},
   onViewStudent = () => {},
@@ -76,6 +70,8 @@ const MainContent = ({
   onAccessResources = () => {},
   showRiskEstimator = false,
   onToggleRiskEstimator = () => {},
+  selectedAudioStudentId = '',
+  onAudioStudentChange = () => {},
 }) => {
   const recentActivities = Array.isArray(students)
     ? students.slice(0, 3).map((student, idx) => {
@@ -196,6 +192,31 @@ const MainContent = ({
         </div>
       </div>
 
+      <AwarenessHub />
+
+      <div className="widget" style={{ marginTop: '24px' }}>
+        <div className="widget-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+          <h3 className="widget-title">Behavioral Audio Capture</h3>
+          <select
+            value={selectedAudioStudentId}
+            onChange={(e) => onAudioStudentChange(e.target.value)}
+            style={{ border: '1px solid #d1d5db', borderRadius: '8px', padding: '8px 10px', minWidth: '220px' }}
+          >
+            <option value="">Select Student</option>
+            {(students || []).map((student) => (
+              <option key={student._id || student.id} value={student._id || student.id}>
+                {student.name || 'Student'}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedAudioStudentId ? (
+          <TeacherAudioCapture studentId={selectedAudioStudentId} />
+        ) : (
+          <p className="empty-message">Select a student to start background audio capture and view recordings.</p>
+        )}
+      </div>
+
       {showRiskEstimator && (
         <ASDRiskEstimator onClose={onToggleRiskEstimator} />
       )}
@@ -217,6 +238,19 @@ export default function TeacherDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [showRiskEstimator, setShowRiskEstimator] = useState(false);
+  const [selectedAudioStudentId, setSelectedAudioStudentId] = useState('');
+
+  // Dummy progress chart data
+  const progressChartData = [
+    { month: 'Aug', progress: 45 },
+    { month: 'Sep', progress: 52 },
+    { month: 'Oct', progress: 58 },
+    { month: 'Nov', progress: 65 },
+    { month: 'Dec', progress: 72 },
+    { month: 'Jan', progress: 78 },
+    { month: 'Feb', progress: 85 },
+    { month: 'Mar', progress: 89 },
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -232,9 +266,11 @@ export default function TeacherDashboard() {
           'Content-Type': 'application/json',
         };
 
-        const profileRes = await fetch('http://localhost:5000/api/teacher/profile', { headers });
-        const studentsRes = await fetch('http://localhost:5000/api/teacher/students', { headers });
-        const statsRes = await fetch('http://localhost:5000/api/teacher/class-stats', { headers });
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
+        const profileRes = await fetch(`${API_BASE}/api/teacher/profile`, { headers });
+        const studentsRes = await fetch(`${API_BASE}/api/teacher/students`, { headers });
+        const statsRes = await fetch(`${API_BASE}/api/teacher/class-stats`, { headers });
 
         let profileData = {};
         let studentsData = [];
@@ -249,7 +285,12 @@ export default function TeacherDashboard() {
 
         if (studentsRes.ok) {
           studentsData = await studentsRes.json();
-          setStudents(Array.isArray(studentsData) ? studentsData : []);
+          const normalizedStudents = Array.isArray(studentsData) ? studentsData : [];
+          setStudents(normalizedStudents);
+          if (!selectedAudioStudentId && normalizedStudents.length > 0) {
+            const defaultStudentId = normalizedStudents[0]._id || normalizedStudents[0].id || '';
+            setSelectedAudioStudentId(String(defaultStudentId));
+          }
         }
 
         if (statsRes.ok) {
@@ -264,7 +305,7 @@ export default function TeacherDashboard() {
     };
 
     fetchData();
-  }, [navigate]);
+  }, [navigate, selectedAudioStudentId]);
 
   const handleNavClick = (path) => {
     const navMap = {
@@ -332,6 +373,7 @@ export default function TeacherDashboard() {
         stats={stats}
         students={students}
         loading={loading}
+        progressChartData={progressChartData}
         onViewStudents={goToStudents}
         onReviewScreenings={goToScreenings}
         onViewStudent={goToStudentProfile}
@@ -339,6 +381,8 @@ export default function TeacherDashboard() {
         onAccessResources={goToResources}
         showRiskEstimator={showRiskEstimator}
         onToggleRiskEstimator={handleToggleRiskEstimator}
+        selectedAudioStudentId={selectedAudioStudentId}
+        onAudioStudentChange={setSelectedAudioStudentId}
       />
     </div>
   );

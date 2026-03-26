@@ -39,6 +39,98 @@ const toolNames = {
   'turn-taking': 'Turn-Taking'
 };
 
+const clampPercent = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+};
+
+const normalizePercent = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  if (n >= 0 && n <= 1) return Math.round(n * 100);
+  return clampPercent(n);
+};
+
+const getMetric = (session, metricKey, fallback = 0) => {
+  if (!session) return fallback;
+  const topLevel = session[metricKey];
+  if (topLevel !== undefined && topLevel !== null) return topLevel;
+  const inMetrics = session.metrics?.[metricKey];
+  if (inMetrics !== undefined && inMetrics !== null) return inMetrics;
+  return fallback;
+};
+
+const buildRadarDataForTool = (toolId, session, compareMode, compareSession) => {
+  const baseScoreA = clampPercent(session?.score || 0);
+  const baseScoreB = clampPercent(compareSession?.score || 0);
+
+  const mkPoint = (subject, valA, valB) => ({
+    subject,
+    A: clampPercent(valA),
+    B: compareMode && compareSession ? clampPercent(valB) : 0,
+    fullMark: 100
+  });
+
+  if (toolId === 'eye-gaze-tracker') {
+    const eyeContactRatioA = normalizePercent(getMetric(session, 'eyeContactRatio', 0));
+    const eyeContactRatioB = normalizePercent(getMetric(compareSession, 'eyeContactRatio', 0));
+    const objectFocusRatioA = normalizePercent(getMetric(session, 'objectFocusRatio', 0));
+    const objectFocusRatioB = normalizePercent(getMetric(compareSession, 'objectFocusRatio', 0));
+    const gazeShiftA = Number(getMetric(session, 'gazeShiftCount', 0)) || 0;
+    const gazeShiftB = Number(getMetric(compareSession, 'gazeShiftCount', 0)) || 0;
+
+    return [
+      mkPoint('Overall', baseScoreA, baseScoreB),
+      mkPoint('Eye Contact', eyeContactRatioA, eyeContactRatioB),
+      mkPoint('Social Focus', eyeContactRatioA, eyeContactRatioB),
+      mkPoint('Object Focus', 100 - objectFocusRatioA, 100 - objectFocusRatioB),
+      mkPoint('Gaze Stability', 100 - Math.min(100, gazeShiftA * 8), 100 - Math.min(100, gazeShiftB * 8)),
+      mkPoint('Tracking Quality', (baseScoreA + eyeContactRatioA) / 2, (baseScoreB + eyeContactRatioB) / 2),
+    ];
+  }
+
+  if (toolId === 'imitation') {
+    const imitationAccuracyA = clampPercent(getMetric(session, 'imitationAccuracy', baseScoreA));
+    const imitationAccuracyB = clampPercent(getMetric(compareSession, 'imitationAccuracy', baseScoreB));
+    const similarityA = normalizePercent(getMetric(session, 'meanSimilarityScore', 0));
+    const similarityB = normalizePercent(getMetric(compareSession, 'meanSimilarityScore', 0));
+    const correctA = Number(getMetric(session, 'correctImitations', 0)) || 0;
+    const totalA = Number(getMetric(session, 'totalActions', 0)) || 0;
+    const correctB = Number(getMetric(compareSession, 'correctImitations', 0)) || 0;
+    const totalB = Number(getMetric(compareSession, 'totalActions', 0)) || 0;
+    const completionA = totalA > 0 ? (correctA / totalA) * 100 : imitationAccuracyA;
+    const completionB = totalB > 0 ? (correctB / totalB) * 100 : imitationAccuracyB;
+
+    return [
+      mkPoint('Overall', baseScoreA, baseScoreB),
+      mkPoint('Accuracy', imitationAccuracyA, imitationAccuracyB),
+      mkPoint('Action Success', completionA, completionB),
+      mkPoint('Similarity', similarityA, similarityB),
+      mkPoint('Consistency', (imitationAccuracyA + similarityA) / 2, (imitationAccuracyB + similarityB) / 2),
+      mkPoint('Completion', completionA, completionB),
+    ];
+  }
+
+  const accuracyA = clampPercent(getMetric(session, 'accuracy', baseScoreA));
+  const accuracyB = clampPercent(getMetric(compareSession, 'accuracy', baseScoreB));
+  const socialA = clampPercent(getMetric(session, 'socialResponseCorrectness', baseScoreA));
+  const socialB = clampPercent(getMetric(compareSession, 'socialResponseCorrectness', baseScoreB));
+  const turnA = clampPercent(getMetric(session, 'waitingBehaviorScore', baseScoreA));
+  const turnB = clampPercent(getMetric(compareSession, 'waitingBehaviorScore', baseScoreB));
+  const sensoryA = 100 - clampPercent((Number(getMetric(session, 'sensoryResponseTime', 0)) || 0) * 10);
+  const sensoryB = 100 - clampPercent((Number(getMetric(compareSession, 'sensoryResponseTime', 0)) || 0) * 10);
+
+  return [
+    mkPoint('Overall', baseScoreA, baseScoreB),
+    mkPoint('Accuracy', accuracyA, accuracyB),
+    mkPoint('Social', socialA, socialB),
+    mkPoint('Turn Taking', turnA, turnB),
+    mkPoint('Sensory', sensoryA, sensoryB),
+    mkPoint('Consistency', (baseScoreA + accuracyA) / 2, (baseScoreB + accuracyB) / 2),
+  ];
+};
+
 const TeacherBehavioralAssessmentDetailPage = () => {
   const { toolId } = useParams();
   const navigate = useNavigate();
@@ -63,19 +155,50 @@ const TeacherBehavioralAssessmentDetailPage = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        // data contains populated studentId
-        const formattedSessions = data.map(s => ({
+        // Build session rows and derive per-student history from all available tool sessions.
+        const sessionRows = data.map(s => ({
           id: s._id,
           studentId: s.studentId?._id,
           studentName: s.studentId?.name || 'Unknown Student',
+          completedAt: s.completedAt,
           date: new Date(s.completedAt).toLocaleDateString(),
-          score: s.score,
+          score: clampPercent(s.score),
           metrics: s.metrics || {},
-          indicators: s.indicators || {},
-          // We can't easily get history for all students in one go without more API calls
-          // For now, let's just use the current score as history point
-          history: [{ date: new Date(s.completedAt).toLocaleDateString(), score: s.score }]
+          indicators: Array.isArray(s.indicators) ? s.indicators : [],
+          eyeContactRatio: s.eyeContactRatio,
+          objectFocusRatio: s.objectFocusRatio,
+          gazeShiftCount: s.gazeShiftCount,
+          totalActions: s.totalActions,
+          correctImitations: s.correctImitations,
+          imitationAccuracy: s.imitationAccuracy,
+          meanSimilarityScore: s.meanSimilarityScore,
         }));
+
+        const historyByStudent = new Map();
+        sessionRows.forEach((row) => {
+          const key = row.studentId || row.studentName;
+          if (!historyByStudent.has(key)) historyByStudent.set(key, []);
+          historyByStudent.get(key).push({
+            date: row.date,
+            score: clampPercent(row.score),
+            ts: new Date(row.completedAt).getTime(),
+          });
+        });
+
+        const formattedSessions = sessionRows
+          .map((row) => {
+            const key = row.studentId || row.studentName;
+            const history = (historyByStudent.get(key) || [])
+              .sort((a, b) => a.ts - b.ts)
+              .map(({ date, score }) => ({ date, score }));
+
+            return {
+              ...row,
+              history,
+            };
+          })
+          .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
         setSessions(formattedSessions);
         if (formattedSessions.length > 0) {
           setSelectedSession(formattedSessions[0]);
@@ -127,14 +250,16 @@ const TeacherBehavioralAssessmentDetailPage = () => {
     );
   }
 
-  const radarData = [
-    { subject: 'Accuracy', A: selectedSession.metrics?.accuracy || 0, B: compareMode && compareSession ? compareSession.metrics?.accuracy || 0 : 0, fullMark: 100 },
-    { subject: 'Eye Contact', A: selectedSession.metrics?.eyeContactTime || 0, B: compareMode && compareSession ? compareSession.metrics?.eyeContactTime || 0 : 0, fullMark: 100 },
-    { subject: 'Imitation', A: selectedSession.metrics?.imitationScore || 0, B: compareMode && compareSession ? compareSession.metrics?.imitationScore || 0 : 0, fullMark: 100 },
-    { subject: 'Social', A: selectedSession.metrics?.socialResponseCorrectness || 0, B: compareMode && compareSession ? compareSession.metrics?.socialResponseCorrectness || 0 : 0, fullMark: 100 },
-    { subject: 'Turn Taking', A: selectedSession.metrics?.waitingBehaviorScore || 0, B: compareMode && compareSession ? compareSession.metrics?.waitingBehaviorScore || 0 : 0, fullMark: 100 },
-    { subject: 'Sensory', A: (100 - (selectedSession.metrics?.sensoryResponseTime * 10 || 0)), B: compareMode && compareSession ? (100 - (compareSession.metrics?.sensoryResponseTime * 10 || 0)) : 0, fullMark: 100 },
-  ];
+  const radarData = buildRadarDataForTool(toolId, selectedSession, compareMode, compareSession);
+  const historyData = Array.isArray(selectedSession.history) ? selectedSession.history : [];
+  const trendChange = historyData.length > 1
+    ? Math.round((historyData[historyData.length - 1].score || 0) - (historyData[0].score || 0))
+    : 0;
+  const trendClass = trendChange > 0 ? 'positive' : trendChange < 0 ? 'negative' : 'neutral';
+  const trendIcon = trendChange >= 0 ? <FiTrendingUp /> : <FiAlertCircle />;
+  const trendText = historyData.length > 1
+    ? `${trendChange > 0 ? '+' : ''}${trendChange}% ${trendChange > 0 ? 'improvement' : trendChange < 0 ? 'change' : 'stable'}`
+    : 'Need 2+ sessions for trend';
 
   return (
     <div className="assessment-detail-page">
@@ -213,7 +338,7 @@ const TeacherBehavioralAssessmentDetailPage = () => {
           <div className="metric-card main-metric">
             <h3>{compareMode && compareSession ? 'Comparative Performance' : 'Assessment Performance'}</h3>
             <div className="radar-container">
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={320} minHeight={260}>
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                   <PolarGrid stroke="#e2e8f0" />
                   <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12 }} />
@@ -243,6 +368,17 @@ const TeacherBehavioralAssessmentDetailPage = () => {
           <div className="metric-card indicators-card">
             <h3>ASD-Relevant Indicators</h3>
             <div className="indicators-list">
+              {(selectedSession.indicators || []).length === 0 && (
+                <div className="indicator-item">
+                  <div className="indicator-info">
+                    <span className="indicator-label">No specific indicators recorded</span>
+                    <span className="indicator-status" style={{ color: '#64748b' }}>N/A</span>
+                  </div>
+                  <div className="indicator-bar-bg">
+                    <div className="indicator-bar-fill" style={{ width: '35%', backgroundColor: '#94a3b8' }}></div>
+                  </div>
+                </div>
+              )}
               {(selectedSession.indicators || []).map((indicator, idx) => (
                 <div key={idx} className="indicator-item">
                   <div className="indicator-info">
@@ -276,13 +412,13 @@ const TeacherBehavioralAssessmentDetailPage = () => {
           <div className="metric-card full-width">
             <div className="card-header-flex">
               <h3>Progress History</h3>
-              <div className="trend-indicator positive">
-                <FiTrendingUp /> +8% improvement
+              <div className={`trend-indicator ${trendClass}`}>
+                {trendIcon} {trendText}
               </div>
             </div>
             <div className="chart-container">
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={selectedSession.history || []}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={320} minHeight={220}>
+                <LineChart data={historyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -299,6 +435,11 @@ const TeacherBehavioralAssessmentDetailPage = () => {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              {historyData.length === 0 && (
+                <div style={{ marginTop: '10px', color: '#64748b', fontSize: '14px' }}>
+                  No session history available yet.
+                </div>
+              )}
             </div>
           </div>
         </div>

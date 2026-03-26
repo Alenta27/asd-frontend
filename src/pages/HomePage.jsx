@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { 
-  FaBrain, 
-  FaHome, 
-  FaUpload, 
-  FaStethoscope, 
-  FaFileAlt, 
-  FaArrowUp 
+import {
+  FaBrain,
+  FaHome,
+  FaUpload,
+  FaStethoscope,
+  FaFileAlt,
+  FaArrowUp
 } from "react-icons/fa";
 import { BsPersonBadge } from "react-icons/bs";
 import { Link } from "react-router-dom";
@@ -38,7 +38,7 @@ const Homepage = () => {
             <div className="flex items-center">
               <FaBrain className="h-8 w-8 text-blue-600" />
               <span className="ml-2 text-xl font-semibold text-gray-800">
-                ASD Detection
+                CORTEXA
               </span>
             </div>
             <div className="hidden md:flex items-center space-x-4">
@@ -79,11 +79,10 @@ const Homepage = () => {
             <div className="w-full md:w-1/2 space-y-8 flex flex-col justify-center">
               <div>
                 <h1 className="text-4xl font-bold text-gray-800 mb-4">
-                  Autism Spectrum Disorder Detection Using CNN
+                  CORTEXA: Multimodal Autism Detection System
                 </h1>
                 <p className="text-gray-600 text-lg">
-                  Leveraging Convolutional Neural Networks to revolutionize early
-                  autism detection.
+                  Combining MRI analysis, facial screening, gaze tracking, and behavioral assessment to enable early autism detection.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-6 bg-blue-50 rounded-lg shadow-md p-5">
@@ -186,7 +185,7 @@ const Homepage = () => {
         </section>
 
         {/* Final Call to Action */}
-        <section 
+        <section
           id="cta"
           className="py-20 bg-black relative bg-cover bg-center"
           style={{ backgroundImage: 'url(/images/cta-background.jpg)' }}
@@ -201,7 +200,7 @@ const Homepage = () => {
             </p>
             {/* CTA Buttons: Facial, Speech Therapy, MRI, and Live Gaze Screening */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
-              <Link to="/screening">
+              <Link to="/facial-screening">
                 <button className="bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300 text-lg w-full sm:w-auto">
                   Facial Screening
                 </button>

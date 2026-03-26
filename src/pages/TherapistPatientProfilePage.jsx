@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FiArrowLeft, FiCalendar, FiActivity, FiFileText, FiEye, FiAlertCircle, FiHome, FiUsers, FiSettings, FiLogOut, FiBarChart2 } from 'react-icons/fi';
 import '../styles/TherapistAppointments.css';
 import SocialAttentionTracker from '../components/SocialAttentionTracker';
+import MultimodalASDReport from '../components/MultimodalASDReport';
 
 const TherapistPatientProfilePage = () => {
   const navigate = useNavigate();
@@ -792,6 +793,12 @@ const TherapistPatientProfilePage = () => {
               </div>
             )}
           </div>
+
+          {/* Multimodal ASD Assessment Report */}
+          <MultimodalASDReport 
+            patientId={patient._id} 
+            patientName={patient.name} 
+          />
               
               {/* Parent/Guardian Information (if available) */}
               {patient.parent_email && (
